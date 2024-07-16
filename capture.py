@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import argparse
+import tomllib
 import datetime
 import logging
 import os
@@ -12,12 +13,9 @@ import threading
 from PIL import Image
 from picamera2 import Picamera2, Preview
 
-# python3 capture.py --preview --min-pixel-diff 30 --recording-dir /home/admin/usbshare1/images/
-# python3 capture.py --min-pixel-diff 30 --recording-dir /home/admin/usbshare1/images/
 
 # setLevel(logging.WARNING) seems to have no impact
-logging.getLogger("picamera2").disabled = True
-stats_file = None
+Picamera2.set_logging(logging.ERROR)
 
 def command_line_handler(signum, frame):
     res = input("Ctrl-c was pressed. Do you really want to exit? y/n ")
@@ -25,81 +23,50 @@ def command_line_handler(signum, frame):
         logging.info("stopping")
         stop()
 
-def parse_command_line_arguments():
-    parser = argparse.ArgumentParser(
-        description='Capture images for training from Picamera2.')
-    parser.add_argument('--preview', help='enables the preview window', required=False, action='store_true')
-    parser.add_argument('--preview-x', type=int, default=100,
-                        help='preview window location x-axis')
-    parser.add_argument('--preview-y', type=int, default=200,
-                        help='preview window location y-axis')
-    parser.add_argument('--preview-width', type=int, default=800,
-                        help='preview window width')
-    parser.add_argument('--preview-height', type=int, default=600,
-                        help='preview window height')
-    parser.add_argument('--zoom', type=float, default=1.0,
-                        help='zoom factor (0.5 is half of the resolution and therefore the zoom is x 2)',
-                        required=False)
-    parser.add_argument('--width', type=int, default=1280, help='camera resolution width for high resolution',
-                        required=False)
-    parser.add_argument('--height', type=int, default=720, help='camera resolution height for high resolution',
-                        required=False)
-    parser.add_argument('--lores-width', type=int, default=320, help='camera resolution width for low resolution',
-                        required=False)
-    parser.add_argument('--lores-height', type=int, default=240, help='camera resolution height for low resolution',
-                        required=False)
-    parser.add_argument('--min-pixel-diff', type=float, default=50,
-                        help='minimum number of pixel changes to detect motion (determined with numpy by calculating the mean of the squared pixel difference between two frames)',
-                        required=False)
-    parser.add_argument('--capture-lores', help='enables capture of lores buffer', action='store_true')
-    parser.add_argument('--recording-dir', default='/home/admin/usbshare1/images/', help='directory to store recordings',
-                        required=False)
-    parser.add_argument('--num-images', type=int, default=5,
-                        help='number of images to take')
-    parser.add_argument('--max-time-since-last-detection-seconds', type=int, default=3600,
-                        help='max time since last motion detection in seconds')
+def load_config():
+    try:
+        with open("config.toml", "rb") as f:
+            config = tomllib.load(f)
+    except Exception as e:
+        logging.critical(f"An error occurred while configuring: {e}")
+        sys.exit(1)
 
-    return parser.parse_args()
+    return config
 
 class MotionDetector:
     """This class contains the main logic for motion detection."""
-    __MAX_TIME_SINCE_LAST_MOTION_DETECTION_SECONDS = 5.0
 
-    def __init__(self, args: argparse.Namespace):
+    def __init__(self, config):
         """MotionDetector
-
         :param args: command line arguments
         """
+        self.__enable_preview = config["preview"]["enable"]
+        self.__zoom_factor = config["preview"]["zoom"]
+        self.__lores_width = config["lores"]["width"]
+        self.__lores_height = config["lores"]["height"]
+        self.__width = config["hires"]["width"]
+        self.__height = config["hires"]["height"]
+        self.__min_pixel_diff = config["detection"]["min_pixel_diff"]
+        self.__capture_lores = config["capture"]["lores"]
+
+        self.__recording_dir = config["capture"]["dir"]
+        self.__preview_x = config["preview"]["x"]
+        self.__preview_y = config["preview"]["y"]
+        self.__preview_width = config["preview"]["width"]
+        self.__preview_height = config["preview"]["height"]
+        self.__num_images = config["capture"]["images"]
+        self.__max_time_since_last_detection_seconds = config["capture"]["anyways"]
+
         self.__picam2 = None
         self.__time_of_last_image = None
-
-        self.__zoom_factor = args.zoom
-        self.__lores_width = args.lores_width
-        self.__lores_height = args.lores_height
-        self.__width = args.width
-        self.__height = args.height
-        self.__min_pixel_diff = args.min_pixel_diff
-        self.__capture_lores = args.capture_lores
-
-        self.__recording_dir = args.recording_dir
-        self.__preview_x = args.preview_x
-        self.__preview_y = args.preview_y
-        self.__preview_width = args.preview_width
-        self.__preview_height = args.preview_height
-        self.__num_images = args.num_images
-        self.__max_time_since_last_detection_seconds = args.max_time_since_last_detection_seconds
-
-        self.__set_up_camera(args.preview)
+        self.__set_up_camera(self.__enable_preview)
 
     def start(self):
         """
         Starts the camera and runs the loop.
         """
         self.__picam2.start()
-        # self.__picam2.start_encoder()
-
         self.__set_zoom_factor()
-
         self.__loop()
 
     def __loop(self):
@@ -150,9 +117,14 @@ class MotionDetector:
     def __capture(self, num_images, triggered, diff):
         for _ in range(num_images):
             file_path = self.__get_capture_file_name(triggered, diff)
-            logging.info(f"Capturing to file {file_path}")
+            # logging.info(f"Capturing to file {file_path}")
+            try:
+                self.__picam2.capture_file(file_path)
+            except Exception as e:
+                logging.error(f"An error occurred capturing to the file: {e}")
+
             time.sleep(1)
-            self.__picam2.capture_file(file_path)
+
 
     def __get_capture_file_name(self, triggered, diff):
         recording_time = datetime.datetime.now()
@@ -192,6 +164,7 @@ class MotionDetector:
 
 
 class StoppableThread(threading.Thread):
+    """Class to create a thread that can be stopped."""
     def __init__(self, *args, **kwargs):
         super(StoppableThread, self).__init__(*args, **kwargs)
         self._stop_event = threading.Event()
@@ -202,45 +175,44 @@ class StoppableThread(threading.Thread):
     def stopped(self):
         return self._stop_event.is_set()
 
-def output_stats(stop_event):
-    """Writes CPU temperature to the stats file every 5 seconds until stop_event is set."""
-    while not stop_event.is_set():
+def output_stats(stats_file_name, interval):
+    """Writes CPU temperature to the stats file every hour until stop_event is set."""
+
+    while True:
+        stats_file = open_stat_file(stats_file_name)
         recording_time = datetime.datetime.now()
         cpu = CPUTemperature()
         stats_file.write(f"{recording_time:%Y-%m-%d %H:%M:%S} {cpu.temperature}\n")
-        time.sleep(300)
+        stats_file.close()
+        time.sleep(interval)
 
-def open_stat_file(directory):
-    """Creates the directory if it doesn't exist and opens a new stats file in write mode."""
+def open_stat_file(stats_file_name):
     try:
-        os.makedirs(directory, exist_ok=True)
-    except OSError as e:
-        logging.critical(f"Error creating directory {directory}: {e}")
-        return None
-
-    recording_time = datetime.datetime.now()
-    file_name = f"{directory}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt"
-    try:
-        stats_file = open(file_name, "w")
+        stats_file = open(stats_file_name, "a+")
         stats_file.write("CPU temperature\n")
         return stats_file
     except IOError as e:
-        logging.critical(f"Error opening file {file_name}: {e}")
+        logging.error(f"Error opening file {file_name}: {e}")
         return None
 
 def stop():
-    stop_event.set()  # Signal the thread to stop
-    thread.join()
+    # stop_event.set()  # Signal the thread to stop
+    # thread.join()
     sys.exit(1)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    command_line_arguments = parse_command_line_arguments()
-    motion_detector = MotionDetector(command_line_arguments)
+    config = load_config()
 
-    stats_file = open_stat_file(command_line_arguments.recording_dir)
-    stop_event = threading.Event()
-    thread = StoppableThread(target=output_stats, args=(stop_event,))
+    motion_detector = MotionDetector(config)
+
+    recording_time = datetime.datetime.now()
+    stats_file_name = f"{config['capture']['dir']}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt"
+    # stats_file = open_stat_file(config["capture"]["dir"])
+    # stop_event = threading.Event()
+    # thread = StoppableThread(target=output_stats, args=(stop_event, config["capture"]["dir"]))
+    thread = threading.Thread(target=output_stats, args=(stats_file_name,config['stats']['interval']))
+    thread.daemon = True
     thread.start()
 
     signal.signal(signal.SIGINT, command_line_handler)
