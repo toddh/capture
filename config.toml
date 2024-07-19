@@ -1,0 +1,23 @@
+[preview]
+enable = false
+x = 100
+y = 200
+width = 880
+height = 600
+zoom = 1.0
+
+[detection]
+min_pixel_diff = 50
+width = 320
+height = 240
+blur = false
+save_every = 1000
+
+[capture]
+dir = '/home/admin/usbshare1/images/'
+images = 5
+anyways = 14400
+algorithm = "histogram"
+
+[stats]
+interval = 3600

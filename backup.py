@@ -10,7 +10,7 @@ import time
 from gpiozero import CPUTemperature
 import threading
 
-from PIL import Image, ImageFilter
+from PIL import Image
 from picamera2 import Picamera2, Preview
 
 
@@ -42,12 +42,12 @@ class MotionDetector:
         """
         self.__enable_preview = config["preview"]["enable"]
         self.__zoom_factor = config["preview"]["zoom"]
-
+        self.__lores_width = config["lores"]["width"]
+        self.__lores_height = config["lores"]["height"]
+        self.__width = config["hires"]["width"]
+        self.__height = config["hires"]["height"]
         self.__min_pixel_diff = config["detection"]["min_pixel_diff"]
-        self.__detection_width = config["detection"]["width"]
-        self.__detection_height = config["detection"]["height"]
-        self.__save_every = config["detection"]["save_every"]
-        self.__blur = config["detection"]["blur"]
+        self.__capture_lores = config["capture"]["lores"]
 
         self.__recording_dir = config["capture"]["dir"]
         self.__preview_x = config["preview"]["x"]
@@ -73,21 +73,16 @@ class MotionDetector:
         """
         Runs the actual motion detection loop that, optionally, triggers sends the recording via email.
         """
-        # TODO: Figure out why We're using lores height and width. Should we have configured the camera for that?
-
+        w, h = self.__lsize
         previous_frame = None
         self.__time_of_last_image = datetime.datetime.now()
-        detection_count = 0
 
         while True:
             try:
-                current_frame = self.__picam2.capture_buffer("lores")
-                # capture_buffer returns a 1d array.  This makes it a 2D array.  Picamera2 does have a helper make_array. Why don't we use that?
-                # And we're doing lores, I assume to make the math easier.  Shouldn't we configure the camera that way?
-                current_frame = current_frame[:self.__detection_width * self.__detection_height].reshape(self.__detection_height, self.__detection_width)
-
+                current_frame = self.__picam2.capture_buffer("lores" if self.__capture_lores else "main")
+                current_frame = current_frame[:w * h].reshape(h, w)
                 if previous_frame is not None:
-                    hist_diff = self.__calculate_histogram_difference(current_frame, previous_frame, self.__blur, detection_count % self.__save_every == 0)
+                    hist_diff = self.__calculate_histogram_difference(current_frame, previous_frame)
                     if hist_diff > self.__min_pixel_diff:
                         logging.info(f"start capturing at: {datetime.datetime.now()}")
                         self.__capture(self.__num_images, True, hist_diff)
@@ -98,26 +93,19 @@ class MotionDetector:
                             self.__capture(1, False, hist_diff)
                             self.__time_of_last_image = datetime.datetime.now()
                 previous_frame = current_frame
-                detection_count += 1
             except Exception as e:
                 logging.error(f"An error occurred in the motion detection loop: {e}")
                 continue
 
-    def __calculate_histogram_difference(self, current_frame, previous_frame, blur, saveit):
-        if blur:
-            current_image = Image.fromarray(current_frame).filter(ImageFilter.GaussianBlur(1))
-            previous_image = Image.fromarray(previous_frame).filter(ImageFilter.GaussianBlur(1))
-        else:
-            current_image = Image.fromarray(current_frame)
-            previous_image = Image.fromarray(previous_frame)
+    def __calculate_histogram_difference(self, current_frame, previous_frame):
+        current_image = Image.fromarray(current_frame)
+        previous_image = Image.fromarray(previous_frame)
 
         current_hist = current_image.histogram()
         previous_hist = previous_image.histogram()
 
         hist_diff = sum([abs(c - p) for c, p in zip(current_hist, previous_hist)]) / len(current_hist)
         # logging.info(f"Diff = {hist_diff}")
-        if saveit:
-            self.__save_detection_image(current_image, hist_diff)
 
         return hist_diff
 
@@ -137,13 +125,6 @@ class MotionDetector:
 
             time.sleep(1)
 
-    def __save_detection_image(self, image, diff):
-        recording_time = datetime.datetime.now()
-        file_name = f"{self.__recording_dir}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:03d}-{diff:04.0f}-d.jpg"
-        try:
-            image.save(file_name)
-        except Exception as e:
-            logging.error(f"An error occurred saving the detection image: {e}")
 
     def __get_capture_file_name(self, triggered, diff):
         recording_time = datetime.datetime.now()
@@ -159,8 +140,12 @@ class MotionDetector:
 
         :param enable_preview: enables preview window
         """
+        self.__lsize = (self.__lores_width, self.__lores_height)
         self.__picam2 = Picamera2()
-        still_config = self.__picam2.create_still_configuration(lores={"size": (self.__detection_width, self.__detection_height)})
+        video_config = self.__picam2.create_video_configuration(
+            main={"size": (self.__width, self.__height), "format": "YUV420"},
+            lores={"size": self.__lsize, "format": "YUV420"})
+        still_config = self.__picam2.create_still_configuration()
         self.__picam2.configure(still_config)
 
         if enable_preview:
