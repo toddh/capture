@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-import argparse
 import tomllib
 import datetime
 import logging
@@ -13,6 +12,8 @@ import threading
 from PIL import Image, ImageFilter
 from picamera2 import Picamera2, Preview
 
+from motion_detector import MotionDetector
+from image_saver import ImageSaver
 
 # setLevel(logging.WARNING) seems to have no impact
 Picamera2.set_logging(logging.ERROR)
@@ -32,150 +33,6 @@ def load_config():
         sys.exit(1)
 
     return config
-
-class MotionDetector:
-    """This class contains the main logic for motion detection."""
-
-    def __init__(self, config):
-        """MotionDetector
-        :param args: command line arguments
-        """
-        self.__enable_preview = config["preview"]["enable"]
-        self.__zoom_factor = config["preview"]["zoom"]
-
-        self.__min_pixel_diff = config["detection"]["min_pixel_diff"]
-        self.__detection_width = config["detection"]["width"]
-        self.__detection_height = config["detection"]["height"]
-        self.__save_every = config["detection"]["save_every"]
-        self.__blur = config["detection"]["blur"]
-
-        self.__recording_dir = config["capture"]["dir"]
-        self.__preview_x = config["preview"]["x"]
-        self.__preview_y = config["preview"]["y"]
-        self.__preview_width = config["preview"]["width"]
-        self.__preview_height = config["preview"]["height"]
-        self.__num_images = config["capture"]["images"]
-        self.__max_time_since_last_detection_seconds = config["capture"]["anyways"]
-
-        self.__picam2 = None
-        self.__time_of_last_image = None
-        self.__set_up_camera(self.__enable_preview)
-
-    def start(self):
-        """
-        Starts the camera and runs the loop.
-        """
-        self.__picam2.start()
-        self.__set_zoom_factor()
-        self.__loop()
-
-    def __loop(self):
-        """
-        Runs the actual motion detection loop that, optionally, triggers sends the recording via email.
-        """
-        # TODO: Figure out why We're using lores height and width. Should we have configured the camera for that?
-
-        previous_frame = None
-        self.__time_of_last_image = datetime.datetime.now()
-        detection_count = 0
-
-        while True:
-            try:
-                current_frame = self.__picam2.capture_buffer("lores")
-                # capture_buffer returns a 1d array.  This makes it a 2D array.  Picamera2 does have a helper make_array. Why don't we use that?
-                # And we're doing lores, I assume to make the math easier.  Shouldn't we configure the camera that way?
-                current_frame = current_frame[:self.__detection_width * self.__detection_height].reshape(self.__detection_height, self.__detection_width)
-
-                if previous_frame is not None:
-                    hist_diff = self.__calculate_histogram_difference(current_frame, previous_frame, self.__blur, detection_count % self.__save_every == 0)
-                    if hist_diff > self.__min_pixel_diff:
-                        logging.info(f"start capturing at: {datetime.datetime.now()}")
-                        self.__capture(self.__num_images, True, hist_diff)
-                        self.__time_of_last_image = datetime.datetime.now()
-                    else:
-                        if self.__is_max_time_since_last_motion_detection_exceeded():
-                            logging.info("max time since last motion detection exceeded")
-                            self.__capture(1, False, hist_diff)
-                            self.__time_of_last_image = datetime.datetime.now()
-                previous_frame = current_frame
-                detection_count += 1
-            except Exception as e:
-                logging.error(f"An error occurred in the motion detection loop: {e}")
-                continue
-
-    def __calculate_histogram_difference(self, current_frame, previous_frame, blur, saveit):
-        if blur:
-            current_image = Image.fromarray(current_frame).filter(ImageFilter.GaussianBlur(1))
-            previous_image = Image.fromarray(previous_frame).filter(ImageFilter.GaussianBlur(1))
-        else:
-            current_image = Image.fromarray(current_frame)
-            previous_image = Image.fromarray(previous_frame)
-
-        current_hist = current_image.histogram()
-        previous_hist = previous_image.histogram()
-
-        hist_diff = sum([abs(c - p) for c, p in zip(current_hist, previous_hist)]) / len(current_hist)
-        # logging.info(f"Diff = {hist_diff}")
-        if saveit:
-            self.__save_detection_image(current_image, hist_diff)
-
-        return hist_diff
-
-    def __is_max_time_since_last_motion_detection_exceeded(self):
-        return self.__time_of_last_image is not None and \
-            ((
-                     datetime.datetime.now() - self.__time_of_last_image).total_seconds() > self.__max_time_since_last_detection_seconds)
-
-    def __capture(self, num_images, triggered, diff):
-        for _ in range(num_images):
-            file_path = self.__get_capture_file_name(triggered, diff)
-            # logging.info(f"Capturing to file {file_path}")
-            try:
-                self.__picam2.capture_file(file_path)
-            except Exception as e:
-                logging.error(f"An error occurred capturing to the file: {e}")
-
-            time.sleep(1)
-
-    def __save_detection_image(self, image, diff):
-        recording_time = datetime.datetime.now()
-        file_name = f"{self.__recording_dir}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:03d}-{diff:04.0f}-d.jpg"
-        try:
-            image.save(file_name)
-        except Exception as e:
-            logging.error(f"An error occurred saving the detection image: {e}")
-
-    def __get_capture_file_name(self, triggered, diff):
-        recording_time = datetime.datetime.now()
-        if (triggered):
-            file_name = f"{self.__recording_dir}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:03d}-{diff:04.0f}-t.jpg"
-        else:
-            file_name = f"{self.__recording_dir}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:03d}-{diff:04.0f}.jpg"
-        return file_name
-
-    def __set_up_camera(self, enable_preview):
-        """
-        Configures the camera, preview window and encoder.
-
-        :param enable_preview: enables preview window
-        """
-        self.__picam2 = Picamera2()
-        still_config = self.__picam2.create_still_configuration(lores={"size": (self.__detection_width, self.__detection_height)})
-        self.__picam2.configure(still_config)
-
-        if enable_preview:
-            self.__picam2.start_preview(Preview.QTGL, x=self.__preview_x, y=self.__preview_y,
-                                        width=self.__preview_width, height=self.__preview_height)
-
-    def __set_zoom_factor(self):
-        """
-        Sets the zoom factor of the camera.
-        """
-        size = self.__picam2.capture_metadata()['ScalerCrop'][2:]
-        self.__picam2.capture_metadata()
-        size = [int(s * self.__zoom_factor) for s in size]
-        offset = [(r - s) // 2 for r, s in zip(self.__picam2.sensor_resolution, size)]
-        self.__picam2.set_controls({"ScalerCrop": offset + size})
 
 
 class StoppableThread(threading.Thread):
@@ -221,8 +78,12 @@ if __name__ == "__main__":
 
     motion_detector = MotionDetector(config)
 
+    image_saver = ImageSaver()
+    image_saver.set_defaults(config["capture"]["output_dir"], config["capture"]["num_images"], motion_detector.picam2)
+
+
     recording_time = datetime.datetime.now()
-    stats_file_name = f"{config['capture']['dir']}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt"
+    stats_file_name = f"{config['capture']['output_dir']}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt"
     # stats_file = open_stat_file(config["capture"]["dir"])
     # stop_event = threading.Event()
     # thread = StoppableThread(target=output_stats, args=(stop_event, config["capture"]["dir"]))
