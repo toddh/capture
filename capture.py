@@ -6,6 +6,8 @@ import os
 import signal
 import sys
 import time
+import argparse
+
 from gpiozero import CPUTemperature
 import threading
 
@@ -75,6 +77,19 @@ def stop():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     config = load_config()
+
+    # Overrides the config file.  Move into load_config?
+
+    parser = argparse.ArgumentParser(
+        prog='Capture',
+        description='Detect motion and capture images.'
+    )
+
+    parser.add_argument('-p', '--preview', action='store_true')
+    args = parser.parse_args()
+
+    if args.preview:
+        config["preview"]["enable"] = True
 
     motion_detector = MotionDetector(config)
 

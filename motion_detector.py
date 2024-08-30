@@ -3,6 +3,7 @@ import logging
 import time
 from PIL import Image, ImageFilter
 from picamera2 import Picamera2, Preview
+from libcamera import Transform
 
 from histogram_difference import HistogramDifference
 
@@ -16,6 +17,7 @@ class MotionDetector:
         self.__lores_width = config["histogram"]["width"]
         self.__lores_height = config["histogram"]["height"]
 
+        self.__enable_preview = config["preview"]["enable"]
         self.__preview_x = config["preview"]["x"]
         self.__preview_y = config["preview"]["y"]
         self.__preview_width = config["preview"]["width"]
@@ -42,12 +44,20 @@ class MotionDetector:
 
         :param enable_preview: enables preview window
         """
-        still_config = self.picam2.create_still_configuration(lores={"size": (self.__lores_width, self.__lores_height)})
+        still_config = self.picam2.create_still_configuration(
+            transform=Transform(vflip=True),
+            buffer_count=4,  # Mimicing preview configuration. Maybe not needed if not previewing
+            main={'format': 'XBGR8888'},
+            lores={'format': 'YUV420', 'size': (self.__lores_width, self.__lores_height)},
+            display="lores"
+            )
+        
+        print("Still config:", still_config)
+
         self.picam2.configure(still_config)
 
         if enable_preview:
-            self.picam2.start_preview(Preview.QTGL, x=self.__preview_x, y=self.__preview_y,
-                                        width=self.__preview_width, height=self.__preview_height)
+            self.picam2.start_preview(Preview.QTGL, x=self.__preview_x, y=self.__preview_y, width=self.__preview_width, height=self.__preview_height)
 
     def __set_zoom_factor(self):
         """

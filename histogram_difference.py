@@ -6,7 +6,7 @@ from picamera2 import Picamera2, Preview
 from image_saver import ImageSaver
 
 class HistogramDifference:
-    """This class contains the main logic for motion detection."""
+    """Detect motion and store snapshots based on a difference in the Histogram."""
 
     def __init__(self, config, picam2):
         """MotionDetector
@@ -70,7 +70,7 @@ class HistogramDifference:
         previous_hist = previous_image.histogram()
 
         hist_diff = sum([abs(c - p) for c, p in zip(current_hist, previous_hist)]) / len(current_hist)
-        logging.info(f"hist_diff: {hist_diff}")
+        # logging.info(f"hist_diff: {hist_diff}")
         if saveit:
             self.__image_saver.save_detection_image(current_image, hist_diff)
 
