@@ -1,0 +1,17 @@
+[tool.ruff]
+select = ["F", "E", "W", "I"]
+ignore = ["E501"]
+
+# Exclude common directories
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+]
+
+# Assume Python 3.8+
+target-version = "py38"
+
+[tool.ruff.isort]
+force-single-line = true
+lines-after-imports = 2

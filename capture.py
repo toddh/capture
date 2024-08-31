@@ -1,21 +1,19 @@
 #!/usr/bin/python3
-import tomllib
+import argparse
 import datetime
 import logging
-import os
 import signal
 import sys
-import time
-import argparse
-
-from gpiozero import CPUTemperature
 import threading
+import time
 
-from PIL import Image, ImageFilter
-from picamera2 import Picamera2, Preview
+import tomllib
+from gpiozero import CPUTemperature
+from picamera2 import Picamera2
 
-from motion_detector import MotionDetector
+from image_capture_loop import ImageCaptureLoop
 from image_saver import ImageSaver
+
 
 # setLevel(logging.WARNING) seems to have no impact
 Picamera2.set_logging(logging.ERROR)
@@ -66,7 +64,7 @@ def open_stat_file(stats_file_name):
         stats_file.write("CPU temperature\n")
         return stats_file
     except IOError as e:
-        logging.error(f"Error opening file {file_name}: {e}")
+        logging.error(f"Error opening file {stats_file_name}: {e}")
         return None
 
 def stop():
@@ -91,18 +89,23 @@ if __name__ == "__main__":
     if args.preview:
         config["preview"]["enable"] = True
 
-    motion_detector = MotionDetector(config)
+    motion_detector = ImageCaptureLoop(config)
 
     image_saver = ImageSaver()
-    image_saver.set_defaults(config["capture"]["output_dir"], config["capture"]["num_images"], motion_detector.picam2)
+    image_saver.set_defaults(
+        config["capture"]["output_dir"],
+        config["capture"]["num_images"],
+        motion_detector.picam2
+    )
 
 
     recording_time = datetime.datetime.now()
-    stats_file_name = f"{config['capture']['output_dir']}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt"
+    stats_file_name = \
+        f"{config['capture']['output_dir']}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt"
     # stats_file = open_stat_file(config["capture"]["dir"])
     # stop_event = threading.Event()
     # thread = StoppableThread(target=output_stats, args=(stop_event, config["capture"]["dir"]))
-    thread = threading.Thread(target=output_stats, args=(stats_file_name,config['stats']['interval']))
+    thread = threading.Thread(target=output_stats, args=(stats_file_name, config['stats']['interval']))
     thread.daemon = True
     thread.start()
 
