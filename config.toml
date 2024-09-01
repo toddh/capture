@@ -1,3 +1,12 @@
+[capture]
+output_dir = '/home/admin/usbshare1/images/'
+num_images = 5
+save_anyways_hours = 4
+show_data = true
+save_images = false
+algorithm = "histogram"
+interval = 1
+
 [preview]
 enable = false
 x = 100
@@ -11,13 +20,6 @@ min_pixel_diff = 20
 width = 320
 height = 240
 blur = false
-save_every = 1000
-
-[capture]
-output_dir = '/home/admin/usbshare1/images/'
-num_images = 5
-anyways = 14400
-algorithm = "histogram"
 
 [stats]
 interval = 3600
