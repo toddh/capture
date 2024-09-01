@@ -1,4 +1,3 @@
-from PIL import Image
 from PIL import ImageFilter
 
 
@@ -11,19 +10,17 @@ class HistogramDifference:
         """
         self._config = config
 
-    def detect_motion(self, current_frame, previous_frame, algorithm_data):
+    def detect_motion(self, current_image, previous_image, algorithm_data):
         algorithm_data["name"] = "histogram"
 
         if self._config["histogram"]["blur"]:
-            current_image = Image.fromarray(current_frame).filter(
-                ImageFilter.GaussianBlur(1)
+            current_image = current_image.filter(
+                ImageFilter.GaussianBlur(self._config["histogram"]["radius"])
             )
-            previous_image = Image.fromarray(previous_frame).filter(
-                ImageFilter.GaussianBlur(1)
+            previous_image = previous_image.filter(
+                ImageFilter.GaussianBlur(self._config["histogram"]["radius"])
             )
-        else:
-            current_image = Image.fromarray(current_frame)
-            previous_image = Image.fromarray(previous_frame)
+        # NOTE: Possible way to optimize by saving the blurred previous image
 
         current_hist = current_image.histogram()
         previous_hist = previous_image.histogram()
@@ -34,7 +31,7 @@ class HistogramDifference:
 
         algorithm_data["hist_diff"] = hist_diff
 
-        if hist_diff > self._config["histogram"]["min_pixel_diff"]:
+        if hist_diff > self._config["histogram"]["min_hist_diff"]:
             return True
         else:
             return False

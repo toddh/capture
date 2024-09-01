@@ -3,7 +3,7 @@ output_dir = '/home/admin/usbshare1/images/'
 num_images = 5
 save_anyways_hours = 4
 show_data = true
-save_images = false
+save_images = true
 algorithm = "histogram"
 interval = 1
 
@@ -16,9 +16,14 @@ height = 600
 zoom = 1.0
 
 [histogram]
-min_pixel_diff = 20
+min_hist_diff = 100
 width = 320
 height = 240
+blur = true
+radius = 3
+
+[adaptive_threshold]
+threshold_percent = 40
 blur = false
 
 [stats]

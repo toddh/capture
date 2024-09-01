@@ -31,6 +31,5 @@ class ImageSaver:
         try:
             if self._config["capture"]["save_images"]:
                 image.save(file_name)
-            # TODO: Decide whether to do image.save or picam2.capture_file
         except Exception as e:
-            logging.error(f"An error occurred saving the detection image: {e}")
+            logging.error(f"An error occurred saving the image: {e}")

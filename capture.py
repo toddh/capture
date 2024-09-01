@@ -18,7 +18,8 @@ Picamera2.set_logging(logging.ERROR)
 
 
 def command_line_handler(signum, frame):
-    res = input("Ctrl-c was pressed. Do you really want to exit? y/n ")
+    # res = input("Ctrl-c was pressed. Do you really want to exit? y/n ")
+    res = "y"
     if res == "y":
         logging.info("stopping")
         stop()
