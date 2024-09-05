@@ -1,12 +1,13 @@
 import datetime
 import logging
-from time import sleep
 import traceback
+from time import sleep
 
 from libcamera import Transform
 from picamera2 import Picamera2
 from picamera2 import Preview
 
+import keyboard_input
 from adaptive_threshold import AdaptiveThreshold
 from histogram_difference import HistogramDifference
 from image_saver import ImageSaver
@@ -45,8 +46,6 @@ class ImageCaptureLoop:
                 current_image = self.picam2.capture_image("main")
                 capture_time = datetime.datetime.now()
 
-                # TODO: Should we do the lores rather than main?
-
                 if previous_image is not None:
                     algorithm_data = {}
                     motion_detected = self.__algorithm.detect_motion(
@@ -71,12 +70,26 @@ class ImageCaptureLoop:
                 previous_image = current_image
                 time_of_last_image = capture_time
 
+                key = keyboard_input.pressed_key()
+                if key == 'd':
+                    print (" ")
+                    str = input("Enter new min_hist_diff: ")
+                    str = str[1:]           # Hacky way to ignore the first character
+                    print ("str: ", str)
+                    try:
+                        self._config["histogram"]["min_hist_diff"] = int(str)
+                    except ValueError:
+                        pass
+                    keyboard_input.record_key_pressed(None)
+
             except Exception as e:
                 logging.error(f"An error occurred in the image capture loop: {e}")
                 traceback.print_exc()
                 continue
 
             sleep(self._config["capture"]["interval"])
+
+
 
     def __set_up_camera(self, enable_preview):
         """

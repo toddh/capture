@@ -38,6 +38,9 @@ class HistogramDifference:
 
     def print_algorithm_data(self, algorithm_data, motion_detected):
         print(
-            f"motion:{'TRUE' if motion_detected else '    '} hist_diff:{algorithm_data['hist_diff']:04.0f}",
+            f"motion:{'TRUE' if motion_detected else '    '}"
+            f" blur:{'TRUE' if self._config['histogram']['blur'] else '    '}"
+            f" min_hist_def:{self._config['histogram']['min_hist_diff']}"
+            f" hist_diff:{algorithm_data['hist_diff']:04.0f}",
             end="\r",
         )

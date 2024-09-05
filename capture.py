@@ -8,14 +8,14 @@ import threading
 
 import tomllib
 from picamera2 import Picamera2
+from pynput import keyboard
 
+import keyboard_input
 from image_capture_loop import ImageCaptureLoop
 from image_saver import ImageSaver
 
 
-# setLevel(logging.WARNING) seems to have no impact
 Picamera2.set_logging(logging.ERROR)
-
 
 def command_line_handler(signum, frame):
     # res = input("Ctrl-c was pressed. Do you really want to exit? y/n ")
@@ -24,6 +24,11 @@ def command_line_handler(signum, frame):
         logging.info("stopping")
         stop()
 
+def on_press(key_code):
+    try:
+        keyboard_input.record_key_pressed(key_code.char)
+    except AttributeError:
+        pass
 
 def load_config():
     try:
@@ -114,6 +119,12 @@ if __name__ == "__main__":
     # thread.start()
 
     # Image Processing Thread
+
+    listener = keyboard.Listener(
+        on_press=on_press,
+    )
+    listener.start()
+
 
     signal.signal(signal.SIGINT, command_line_handler)
     image_capture_loop.start()

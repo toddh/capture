@@ -16,7 +16,7 @@ height = 600
 zoom = 1.0
 
 [histogram]
-min_hist_diff = 100
+min_hist_diff = 5000
 width = 320
 height = 240
 blur = true
