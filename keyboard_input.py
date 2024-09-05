@@ -18,6 +18,8 @@ def pressed_key():
         return key_pressed
 
 def print_overrides():
+    print(" ")
+    print("Keyboard Overrides:")
     print("d: Change min_hist_diff")
     print("r: Change blur radius")
     print(" ")
