@@ -41,6 +41,8 @@ class ImageCaptureLoop:
             datetime.datetime.now()
         )  # Not really last image, but default value so math works
 
+        keyboard_input.print_overrides()
+
         while True:
             try:
                 current_image = self.picam2.capture_image("main")
@@ -49,7 +51,7 @@ class ImageCaptureLoop:
                 if previous_image is not None:
                     algorithm_data = {}
                     motion_detected = self.__algorithm.detect_motion(
-                        current_image, previous_image, algorithm_data
+                        current_image, previous_image, capture_time, algorithm_data
                     )
 
                     self.__algorithm.print_algorithm_data(
@@ -71,16 +73,8 @@ class ImageCaptureLoop:
                 time_of_last_image = capture_time
 
                 key = keyboard_input.pressed_key()
-                if key == 'd':
-                    print (" ")
-                    str = input("Enter new min_hist_diff: ")
-                    str = str[1:]           # Hacky way to ignore the first character
-                    print ("str: ", str)
-                    try:
-                        self._config["histogram"]["min_hist_diff"] = int(str)
-                    except ValueError:
-                        pass
-                    keyboard_input.record_key_pressed(None)
+                if key is not None:
+                    keyboard_input.input_override(key, self._config)
 
             except Exception as e:
                 logging.error(f"An error occurred in the image capture loop: {e}")
@@ -106,8 +100,8 @@ class ImageCaptureLoop:
             lores={
                 "format": "YUV420",
                 "size": (
-                    self._config["histogram"]["width"],
-                    self._config["histogram"]["height"],
+                    self._config["preview"]["width"],
+                    self._config["preview"]["height"],
                 ),
             },
             display="lores",

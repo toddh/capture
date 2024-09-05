@@ -11,6 +11,7 @@ def singleton(cls):
 
     return get_instance
 
+# TODO: Consider whether this really needs to be a class as it's a singleton
 
 @singleton
 class ImageSaver:
@@ -31,5 +32,13 @@ class ImageSaver:
         try:
             if self._config["capture"]["save_images"]:
                 image.save(file_name)
+        except Exception as e:
+            logging.error(f"An error occurred saving the image: {e}")
+
+    def save_intermediate_image(self, image, recording_time, algorithm_data):
+        file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:03d}-i.jpg"
+
+        try:
+            image.save(file_name)
         except Exception as e:
             logging.error(f"An error occurred saving the image: {e}")
