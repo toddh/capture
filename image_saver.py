@@ -53,7 +53,7 @@ class ImageSaver:
             logging.error(f"An error occurred saving the image: {e}")
 
     def save_intermediate_image(self, image, recording_time, algorithm_data):
-        file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-i.jpg"
+        file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-2.jpg"
 
         try:
             image.save(file_name)
@@ -61,8 +61,8 @@ class ImageSaver:
             logging.error(f"An error occurred saving the image: {e}")
 
     def save_intermediate_images(self, current_image, previous_image, recording_time, algorithm_data):
-        current_file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-c.jpg"
-        previous_file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-p.jpg"
+        current_file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-2.jpg"
+        previous_file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-1.jpg"
 
         try:
             txt = f"1234578 {algorithm_data['hist_diff']:.0f}\n"

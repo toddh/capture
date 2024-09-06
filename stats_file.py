@@ -9,6 +9,7 @@ from gpiozero import CPUTemperature
 import running_average
 
 stats_file = None
+stats_file_name = None
 last_timestamp = datetime.datetime.now()
 num_samples = 0
 ra = running_average.RunningAverage()
@@ -40,9 +41,10 @@ def accumulate_stats(timestamp, diff):
 
 def output_stats(stats_file_name, interval):
     """Writes CPU temperature to the stats file every hour until stop_event is set."""
-    global stats_file
+    global stats_file, status_file_name
 
     while True:
+        stats_file = open(stats_file_name, "a+")
         recording_time = datetime.datetime.now()
         cpu = CPUTemperature()
         stats_file.write(f"{recording_time:%Y-%m-%d %H:%M:%S} cpu_temp: {cpu.temperature} avg_time: {average_time} avg_diff: {average_diff}\n")
@@ -61,14 +63,14 @@ def open_stat_file(stats_file_name):
         return None
 
 def start_stats_thread(config):
-    global stats_file
+    global stats_file, stats_file_name
 
 
     recording_time = datetime.datetime.now()
     stats_file_name = (
         f"{config['capture']['output_dir']}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt")
 
-    stats_file = open_stat_file(stats_file_name)
+    # stats_file = open_stat_file(stats_file_name)
 
     stop_event = threading.Event()
     thread = StoppableThread(target=output_stats, args=(stop_event))

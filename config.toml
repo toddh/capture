@@ -5,7 +5,7 @@ save_anyways_hours = 1
 show_data = true
 save_images = true
 algorithm = "histogram"
-interval = 0.2
+interval = 1
 
 [preview]
 enable = false
@@ -16,16 +16,16 @@ height = 600
 zoom = 1.0
 
 [histogram]
-min_hist_diff = 5000
+min_hist_diff = 10000
 width = 320
 height = 240
 blur = true
-radius = 5
-save_intermediate_images = false
+radius = 11
+save_intermediate_images = true
 
 [adaptive_threshold]
 threshold_percent = 40
 blur = false
 
 [stats]
-interval = 5
+interval = 600
