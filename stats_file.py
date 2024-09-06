@@ -9,7 +9,7 @@ from gpiozero import CPUTemperature
 import running_average
 
 stats_file = None
-last_timestamp = None
+last_timestamp = datetime.datetime.now()
 num_samples = 0
 ra = running_average.RunningAverage()
 average_time = 0
@@ -33,7 +33,7 @@ class StoppableThread(threading.Thread):
 def accumulate_stats(timestamp, diff):
     global last_timestamp, average_time, average_diff
 
-    average_time = ra.update(timestamp - last_timestamp)
+    average_time = ra.update((timestamp - last_timestamp).total_seconds())
     last_timestamp = last_timestamp
 
     average_diff = ra.update(diff)
@@ -69,10 +69,10 @@ def start_stats_thread(config):
     stats_file_name = (
         f"{config['capture']['output_dir']}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt")
 
-    stats_file = open_stat_file(config["capture"]["dir"])
+    stats_file = open_stat_file(stats_file_name)
 
     stop_event = threading.Event()
-    thread = StoppableThread(target=output_stats, args=(stop_event, config["capture"]["dir"]))
+    thread = StoppableThread(target=output_stats, args=(stop_event))
 
     # Start the statics thread
 
