@@ -1,7 +1,8 @@
 import logging
-from PIL import Image
-from PIL.ExifTags import TAGS
+
 import piexif
+from PIL.ExifTags import TAGS
+
 
 def get_exif_tag_id(tag_name):
     for tag_id, name in TAGS.items():
@@ -56,5 +57,24 @@ class ImageSaver:
 
         try:
             image.save(file_name)
+        except Exception as e:
+            logging.error(f"An error occurred saving the image: {e}")
+
+    def save_intermediate_images(self, current_image, previous_image, recording_time, algorithm_data):
+        current_file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-c.jpg"
+        previous_file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-p.jpg"
+
+        try:
+            txt = f"1234578 {algorithm_data['hist_diff']:.0f}\n"
+            exif_ifd = {piexif.ExifIFD.UserComment: txt.encode()}
+
+            exif_dict = {"0th": {}, "Exif": exif_ifd, "1st": {},
+                    "thumbnail": None, "GPS": {}}
+
+            exif_dat = piexif.dump(exif_dict)
+
+            current_image.save(current_file_name, exif=exif_dat)
+            previous_image.save(previous_file_name,  exif=exif_dat)
+
         except Exception as e:
             logging.error(f"An error occurred saving the image: {e}")

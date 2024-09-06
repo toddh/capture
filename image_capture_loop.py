@@ -37,7 +37,7 @@ class ImageCaptureLoop:
 
     def loop(self):
         previous_image = None
-        time_of_last_image = (
+        time_of_last_save = (
             datetime.datetime.now()
         )  # Not really last image, but default value so math works
 
@@ -59,7 +59,7 @@ class ImageCaptureLoop:
                     )
 
                     if motion_detected or (
-                        (capture_time - time_of_last_image).total_seconds()
+                        (capture_time - time_of_last_save).total_seconds()
                         > self._save_every_seconds
                     ):
                         self.__image_saver.save_image(
@@ -68,9 +68,9 @@ class ImageCaptureLoop:
                             motion_detected,
                             algorithm_data,
                         )
+                    time_of_last_save = capture_time
 
                 previous_image = current_image
-                time_of_last_image = capture_time
 
                 key = keyboard_input.pressed_key()
                 if key is not None:

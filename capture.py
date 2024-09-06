@@ -5,11 +5,12 @@ import logging
 import signal
 import sys
 import threading
+import stats_file
 
 import tomllib
 from picamera2 import Picamera2
-from pynput import keyboard
 
+# from pynput import keyboard
 import keyboard_input
 from image_capture_loop import ImageCaptureLoop
 from image_saver import ImageSaver
@@ -67,25 +68,6 @@ class StoppableThread(threading.Thread):
         return self._stop_event.is_set()
 
 
-# def output_stats(stats_file_name, interval):
-#     """Writes CPU temperature to the stats file every hour until stop_event is set."""
-
-#     while True:
-#         stats_file = open_stat_file(stats_file_name)
-#         recording_time = datetime.datetime.now()
-#         cpu = CPUTemperature()
-#         stats_file.write(f"{recording_time:%Y-%m-%d %H:%M:%S} {cpu.temperature}\n")
-#         stats_file.close()
-#         time.sleep(interval)
-
-# def open_stat_file(stats_file_name):
-#     try:
-#         stats_file = open(stats_file_name, "a+")
-#         stats_file.write("CPU temperature\n")
-#         return stats_file
-#     except IOError as e:
-#         logging.error(f"Error opening file {stats_file_name}: {e}")
-#         return None
 
 
 def stop():
@@ -108,22 +90,15 @@ if __name__ == "__main__":
         f"{config['capture']['output_dir']}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt"
     )
 
-    # stats_file = open_stat_file(config["capture"]["dir"])
-    # stop_event = threading.Event()
-    # thread = StoppableThread(target=output_stats, args=(stop_event, config["capture"]["dir"]))
+    stats_file.start_stats_thread(stats_file_name, config)
 
-    # Start the statics thread
-
-    # thread = threading.Thread(target=output_stats, args=(stats_file_name, config['stats']['interval']))
-    # thread.daemon = True
-    # thread.start()
 
     # Image Processing Thread
 
-    listener = keyboard.Listener(
-        on_press=on_press,
-    )
-    listener.start()
+    # listener = keyboard.Listener(
+    #     on_press=on_press,
+    # )
+    # listener.start()
 
 
     signal.signal(signal.SIGINT, command_line_handler)

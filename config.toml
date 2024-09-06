@@ -1,11 +1,11 @@
 [capture]
 output_dir = '/home/admin/usbshare1/images/'
 num_images = 5
-save_anyways_hours = 4
+save_anyways_hours = 1
 show_data = true
 save_images = true
 algorithm = "histogram"
-interval = 0.1
+interval = 0.5
 
 [preview]
 enable = false
