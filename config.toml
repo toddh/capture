@@ -5,7 +5,7 @@ save_anyways_hours = 1
 show_data = true
 save_images = true
 algorithm = "histogram"
-interval = 0.5
+interval = 0.2
 
 [preview]
 enable = false
@@ -28,4 +28,4 @@ threshold_percent = 40
 blur = false
 
 [stats]
-interval = 3600
+interval = 5

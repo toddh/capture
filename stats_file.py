@@ -43,7 +43,6 @@ def output_stats(stats_file_name, interval):
     global stats_file
 
     while True:
-        stats_file = open_stat_file(stats_file_name)
         recording_time = datetime.datetime.now()
         cpu = CPUTemperature()
         stats_file.write(f"{recording_time:%Y-%m-%d %H:%M:%S} cpu_temp: {cpu.temperature} avg_time: {average_time} avg_diff: {average_diff}\n")
