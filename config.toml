@@ -1,3 +1,12 @@
+[capture]
+output_dir = '/home/admin/usbshare1/images/'
+num_images = 5
+save_anyways_hours = 1
+show_data = true
+save_images = true
+algorithm = "histogram"
+interval = 0.5
+
 [preview]
 enable = false
 x = 100
@@ -6,22 +15,17 @@ width = 880
 height = 600
 zoom = 1.0
 
-[hires]
-width = 1280
-height = 720
-
-[lores]
+[histogram]
+min_hist_diff = 5000
 width = 320
 height = 240
+blur = true
+radius = 5
+save_intermediate_images = false
 
-[detection]
-min_pixel_diff = 50
-
-[capture]
-lores = false
-dir = '/home/admin/usbshare1/images/'
-images = 5
-anyways = 14400
+[adaptive_threshold]
+threshold_percent = 40
+blur = false
 
 [stats]
 interval = 3600
