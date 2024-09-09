@@ -77,7 +77,7 @@ if __name__ == "__main__":
     # listener = keyboard.Listener(
     #     on_press=on_press,
     # )
-    # listener.start()
+    # listener.start()lores
 
 
     signal.signal(signal.SIGINT, command_line_handler)

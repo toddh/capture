@@ -1,11 +1,12 @@
 [capture]
-output_dir = '/home/admin/usbshare1/images/'
+output_dir = '/home/admin/images/'
 num_images = 5
 save_anyways_hours = 1
 show_data = true
 save_images = true
-algorithm = "histogram"
+algorithm = "opencv"
 interval = 1
+flip = false
 
 [preview]
 enable = false
