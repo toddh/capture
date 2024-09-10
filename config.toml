@@ -1,19 +1,18 @@
 [capture]
-output_dir = '/home/admin/images/'
-num_images = 5
+output_dir = '/home/admin/usbshare1/images/'
 save_anyways_hours = 1
-show_data = true
+print_data = false
 save_images = true
 algorithm = "opencv"
-interval = 1
-flip = false
+interval = 0.5
+flip = true
 
 [preview]
 enable = false
 x = 100
 y = 200
-width = 880
-height = 600
+width = 320
+height = 240
 zoom = 1.0
 
 [histogram]
@@ -27,6 +26,9 @@ save_intermediate_images = true
 [adaptive_threshold]
 threshold_percent = 40
 blur = false
+
+[opencv]
+preview = false
 
 [stats]
 interval = 600

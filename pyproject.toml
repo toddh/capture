@@ -1,6 +1,6 @@
 [tool.ruff]
 select = ["F", "E", "W", "I"]
-ignore = ["E501"]
+ignore = ["E501", "I101"]
 
 # Exclude common directories
 exclude = [

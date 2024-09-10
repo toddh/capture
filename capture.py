@@ -1,18 +1,14 @@
 #!/usr/bin/python3
 import argparse
-import tomllib
-import datetime
 import logging
 import signal
 import sys
-import threading
-import stats_file
 
 import tomllib
 from picamera2 import Picamera2
 
-# from pynput import keyboard
 import keyboard_input
+import stats_file
 from image_capture_loop import ImageCaptureLoop
 from image_saver import ImageSaver
 

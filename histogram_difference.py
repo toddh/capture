@@ -1,7 +1,7 @@
 from PIL import ImageFilter
 
 from image_saver import ImageSaver
-from stats_file import accumulate_stats
+from  stats_fileimport import accumulate_stats
 
 
 class HistogramDifference:
