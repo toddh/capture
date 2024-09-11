@@ -1,11 +1,19 @@
 [capture]
 output_dir = '/home/admin/usbshare1/images/'
+# output_dir = '/home/admin/images/'
 save_anyways_hours = 1
 print_data = false
 save_images = true
 algorithm = "opencv"
 interval = 0.5
 flip = true
+camera_name = 0
+lores.width = 320
+lores.height = 240
+main.width = 2028
+main.height = 1520
+process_stream = "lores"
+
 
 [preview]
 enable = false

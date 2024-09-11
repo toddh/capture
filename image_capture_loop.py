@@ -19,7 +19,7 @@ class ImageCaptureLoop:
     def __init__(self, config):
         self._config = config
 
-        self._picam2 = Picamera2(1)
+        self._picam2 = Picamera2(config["capture"]["camera_name"])
 
         self.__set_up_camera(config["preview"]["enable"])
 
@@ -47,7 +47,11 @@ class ImageCaptureLoop:
 
         while True:
             try:
-                current_array = self._picam2.capture_array("main")
+                if self._config["capture"]["process_stream"] == "lores":
+                    current_array = self._picam2.capture_array("lores")
+                else:
+                    current_array = self._picam2.capture_array("main")
+
                 capture_time = datetime.datetime.now()
 
                 # if previous_image is not None:
@@ -65,6 +69,9 @@ class ImageCaptureLoop:
                     (capture_time - time_of_last_save).total_seconds()
                     > self._save_every_seconds
                 ):
+                    if self._config["capture"]["process_stream"] == "lores":
+                         current_array = self._picam2.capture_array("main")
+
                     self.__image_saver.save_array(
                         current_array,
                         capture_time,
@@ -94,9 +101,6 @@ class ImageCaptureLoop:
 
         :param enable_preview: enables preview window
         """
-
-        # I was using XBGR8888, but switched to RGB888 because it's easier to work with in OpenCV
-        # TODO: Figure out what size of main I want versus lores. Maybe do opencv on lores and then capture main?
         
         if self._config['capture']['flip']:
             transform = Transform(vflip=True, hflip=True)
@@ -104,13 +108,17 @@ class ImageCaptureLoop:
             transform = Transform()
         still_config = self._picam2.create_still_configuration(
             transform=transform,
-            buffer_count=4,  # Mimicking preview configuration. Maybe not needed if not previewing?
-            main={"format": "RGB888", "size": (640, 480)},
+            buffer_count=4,
+            main={"format": "XBGR8888", "size": (
+                self._config["capture"]["main"]["width"],
+                self._config["capture"]["main"]["height"],
+                )
+            },
             lores={
-                "format": "YUV420",
+                "format": "XBGR8888",
                 "size": (
-                    self._config["preview"]["width"],
-                    self._config["preview"]["height"],
+                self._config["capture"]["lores"]["width"],
+                self._config["capture"]["lores"]["height"],
                 ),
             },
             display="lores",

@@ -43,13 +43,26 @@ def load_config():
     )
 
     parser.add_argument("-p", "--preview", action="store_true")
+    parser.add_argument("-pp", "--opencv_preview", action="store_true")
+    parser.add_argument('--flip', action=argparse.BooleanOptionalAction)
+
     args = parser.parse_args()
 
     if args.preview:
         config["preview"]["enable"] = True
+    if args.opencv_preview:
+        config["opencv"]["preview"] = True
+
+
+    if args.flip is None:
+        pass
+    elif args.flip:
+        config["capture"]["flip"] = True
+    else:
+        config["capture"]["flip"] = False
 
     return config
-
+    
 def stop():
     # stop_event.set()  # Signal the thread to stop
     # thread.join()

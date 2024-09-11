@@ -1,5 +1,5 @@
 import logging
-
+import platform
 import piexif
 from PIL.ExifTags import TAGS
 from PIL import Image
@@ -20,8 +20,6 @@ def singleton(cls):
 
     return get_instance
 
-# TODO: Consider whether this really needs to be a class as it's a singleton
-
 @singleton
 class ImageSaver:
     def __init__(self):
@@ -31,11 +29,10 @@ class ImageSaver:
         self._config = config
 
     def save_array(self, array, recording_time, motion_detected, algorithm_data):
-        # TODO: Add node name to file_name
         if motion_detected:
-            file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-d.jpg"
+            file_name = f"{self._config['capture']['output_dir']}{platform.node()}-{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-d.jpg"
         else:
-            file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}.jpg"
+            file_name = f"{self._config['capture']['output_dir']}{platform.node()}-{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}.jpg"
 
         image = Image.fromarray(array).convert("RGB")
 
