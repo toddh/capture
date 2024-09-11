@@ -19,7 +19,7 @@ class ImageCaptureLoop:
     def __init__(self, config):
         self._config = config
 
-        self._picam2 = Picamera2()
+        self._picam2 = Picamera2(1)
 
         self.__set_up_camera(config["preview"]["enable"])
 
