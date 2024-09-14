@@ -39,7 +39,7 @@ class HistogramDifference:
         accumulate_stats(recording_time, hist_diff)
 
         if hist_diff > self._config["histogram"]["min_hist_diff"]:
-            if self._config['histogram']['save_intermediate_images']:
+            if self._config['capture']['save_intermediate_images']:
                 self._image_saver.save_intermediate_images(current_image, previous_image, recording_time, algorithm_data)
             return True
         else:

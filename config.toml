@@ -10,10 +10,13 @@ flip = true
 camera_name = 0
 lores.width = 320
 lores.height = 240
-main.width = 2028
-main.height = 1520
+# main.width = 2028
+# main.height = 1520
+main.width = 4608
+main.height = 2592
 process_stream = "lores"
-
+debug = false
+save_intermediate_images = false
 
 [preview]
 enable = false
@@ -29,7 +32,6 @@ width = 320
 height = 240
 blur = true
 radius = 11
-save_intermediate_images = true
 
 [adaptive_threshold]
 threshold_percent = 40

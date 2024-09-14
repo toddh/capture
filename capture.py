@@ -45,6 +45,7 @@ def load_config():
     parser.add_argument("-p", "--preview", action="store_true")
     parser.add_argument("-pp", "--opencv_preview", action="store_true")
     parser.add_argument('--flip', action=argparse.BooleanOptionalAction)
+    parser.add_argument("-d", "--debug", action="store_true")
 
     args = parser.parse_args()
 
@@ -60,6 +61,14 @@ def load_config():
         config["capture"]["flip"] = True
     else:
         config["capture"]["flip"] = False
+
+    if args.debug:
+        config["capture"]["debug"] = True
+
+    if config["capture"]["debug"]:
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debugging enabled")
 
     return config
     

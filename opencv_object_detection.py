@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import logging
 
 from image_saver import ImageSaver
 
@@ -17,15 +18,20 @@ class OpenCVObjectDetection:
 
         # TODO: See if there is a better model for us to use
         self._net = cv2.dnn.readNetFromCaffe('MobileNetSSD_deploy.prototxt.txt', 'MobileNetSSD_deploy.caffemodel')
-        self._classes = ["background", "aeroplane", "bicycle", "bird", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+        self._classes = ["background", "aeroplane", "bicycle", "bird", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "sheep", "sofa", "train", "tvmonitor"]
 
     # TODO: Determine whether we want to detect motion on the lores image for efficiency
     def detect_motion(self, current_array, recording_time, algorithm_data):
+        logger = logging.getLogger()
+
         algorithm_data["name"] = "opencv"
         algorithm_data["opencv"] = {}
 
         three_channel = cv2.cvtColor(current_array, cv2.COLOR_RGBA2BGR)
         blob = cv2.dnn.blobFromImage(cv2.resize(three_channel, (300, 300)), 0.007843, (300, 300), 127.5)
+
+        if self._config['capture']['save_intermediate_images']:
+            self._image_saver.save_intermediate_array(three_channel, recording_time, self.get_object_detection_data(algorithm_data))
 
         self._net.setInput(blob)
         detections = self._net.forward()
@@ -62,6 +68,9 @@ class OpenCVObjectDetection:
                     # print(f"Detected {self._classes[class_id]} with confidence {confidence:.2f}")
                     algorithm_data['opencv'][self._classes[class_id]] = confidence
                     cnt += 1
+
+        logger.debug(f"Detected {cnt} objects")
+
 
         accumulate_stats(recording_time, 0)
 

@@ -24,6 +24,7 @@ def singleton(cls):
 class ImageSaver:
     def __init__(self):
         self.__directory = None
+        self._logger = logging.getLogger()
 
     def set_config(self, config):
         self._config = config
@@ -48,7 +49,27 @@ class ImageSaver:
                 exif_dat = piexif.dump(exif_dict)
                 image.save(file_name, exif=exif_dat)
         except Exception as e:
-            logging.error(f"An error occurred saving the image: {e}")
+            self._logger.error(f"An error occurred saving the image: {e}")
+
+    def save_intermediate_array(self, array, recording_time, algorithm_data):
+        file_name = f"{self._config['capture']['output_dir']}{platform.node()}-{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-1.jpg"
+
+        image = Image.fromarray(array).convert("RGB")
+
+        try:
+            if self._config["capture"]["save_images"]:
+                # This link was useful for this. I had trouble just using PILLOW. https://stackoverflow.com/a/63649983
+                txt = algorithm_data
+                exif_ifd = {piexif.ExifIFD.UserComment: txt.encode()}
+
+                exif_dict = {"0th": {}, "Exif": exif_ifd, "1st": {},
+                        "thumbnail": None, "GPS": {}}
+
+                exif_dat = piexif.dump(exif_dict)
+                image.save(file_name, exif=exif_dat)
+        except Exception as e:
+            self._logger.error(f"An error occurred saving the image: {e}")
+
 
     # def save_image(self, image, recording_time, motion_detected, algorithm_data):
     #     if motion_detected:

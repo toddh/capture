@@ -45,6 +45,9 @@ class ImageCaptureLoop:
 
         # keyboard_input.print_overrides()
 
+        logger = logging.getLogger()
+        logger.debug(f"initiating loop with config: {str(self._config)}")
+
         while True:
             try:
                 if self._config["capture"]["process_stream"] == "lores":
@@ -65,6 +68,8 @@ class ImageCaptureLoop:
                         algorithm_data, motion_detected
                     )
 
+                logger.debug(f"Checked image at: {capture_time:%H:%M:%S} Motion detected: {motion_detected}")
+                
                 if motion_detected or (
                     (capture_time - time_of_last_save).total_seconds()
                     > self._save_every_seconds
@@ -101,6 +106,8 @@ class ImageCaptureLoop:
 
         :param enable_preview: enables preview window
         """
+
+        # TODO: Reenable setting the size of the main stream
         
         if self._config['capture']['flip']:
             transform = Transform(vflip=True, hflip=True)
@@ -109,10 +116,7 @@ class ImageCaptureLoop:
         still_config = self._picam2.create_still_configuration(
             transform=transform,
             buffer_count=4,
-            main={"format": "XBGR8888", "size": (
-                self._config["capture"]["main"]["width"],
-                self._config["capture"]["main"]["height"],
-                )
+            main={"format": "XBGR8888"
             },
             lores={
                 "format": "XBGR8888",
