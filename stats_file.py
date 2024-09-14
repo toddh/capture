@@ -3,6 +3,7 @@ import datetime
 import logging
 import threading
 import time
+import platform
 
 from gpiozero import CPUTemperature
 
@@ -68,14 +69,14 @@ def start_stats_thread(config):
 
     recording_time = datetime.datetime.now()
     stats_file_name = (
-        f"{config['capture']['output_dir']}/stats-{recording_time:%Y-%m-%d %H%M%S}.txt")
+        f"{config['capture']['output_dir']}/{platform.node()}-stats-{recording_time:%Y-%m-%d %H%M%S}.txt")
 
     # stats_file = open_stat_file(stats_file_name)
 
     stop_event = threading.Event()
     thread = StoppableThread(target=output_stats, args=(stop_event))
 
-    # Start the statics thread
+    # Start the statistics thread
 
     thread = threading.Thread(target=output_stats, args=(stats_file_name, config['stats']['interval']))
     thread.daemon = True

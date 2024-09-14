@@ -21,11 +21,12 @@ class OpenCVObjectDetection:
         self._classes = ["background", "aeroplane", "bicycle", "bird", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "sheep", "sofa", "train", "tvmonitor"]
 
     # TODO: Determine whether we want to detect motion on the lores image for efficiency
-    def detect_motion(self, current_array, recording_time, algorithm_data):
+    def detect_motion(self, current_array, recording_time, pir, algorithm_data):
         logger = logging.getLogger()
 
         algorithm_data["name"] = "opencv"
         algorithm_data["opencv"] = {}
+        algorithm_data["pir"] = "True" if pir else "False"
 
         three_channel = cv2.cvtColor(current_array, cv2.COLOR_RGBA2BGR)
         blob = cv2.dnn.blobFromImage(cv2.resize(three_channel, (300, 300)), 0.007843, (300, 300), 127.5)
@@ -80,13 +81,14 @@ class OpenCVObjectDetection:
             return False
 
     def print_algorithm_data(self, algorithm_data, motion_detected):
+        logger = logging.getLogger()
         try:
-            print(
+            logger.debug(
                 f"motion:{'TRUE' if motion_detected else '    '}"
                 f" data:{str(algorithm_data):<40}",
             )
         except KeyError:
-            print("trouble printing opencv algorithm data")
+            logger.error("trouble printing opencv algorithm data")
 
     def get_object_detection_data(self, algorithm_data):
         return f" data:{str(algorithm_data)}"

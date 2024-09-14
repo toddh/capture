@@ -11,12 +11,12 @@ from picamera2 import Preview
 # from histogram_difference import HistogramDifference
 from image_saver import ImageSaver
 from opencv_object_detection import OpenCVObjectDetection
-
+import monitor_pir
 
 class ImageCaptureLoop:
     """This class is the overall motion detector loop.  Currently, it only supports the OpenCV algorithm."""
 
-    def __init__(self, config):
+    def __init__(self, config, pir_thread):
         self._config = config
 
         self._picam2 = Picamera2(config["capture"]["camera_name"])
@@ -29,6 +29,8 @@ class ImageCaptureLoop:
 
         self.__image_saver = ImageSaver()
         self._save_every_seconds = config["capture"]["save_anyways_hours"] * 3600
+
+        self._pir_thread = pir_thread
 
     def start(self):
         """
@@ -48,8 +50,11 @@ class ImageCaptureLoop:
         logger = logging.getLogger()
         logger.debug(f"initiating loop with config: {str(self._config)}")
 
+
         while True:
             try:
+                pir = self._pir_thread.pir_detected()
+
                 if self._config["capture"]["process_stream"] == "lores":
                     current_array = self._picam2.capture_array("lores")
                 else:
@@ -57,10 +62,9 @@ class ImageCaptureLoop:
 
                 capture_time = datetime.datetime.now()
 
-                # if previous_image is not None:
                 algorithm_data = {}
                 motion_detected = self._algorithm.detect_motion(
-                    current_array, capture_time, algorithm_data
+                    current_array, capture_time, pir, algorithm_data
                 )
 
                 if self._config["capture"]["print_data"]:
@@ -70,7 +74,7 @@ class ImageCaptureLoop:
 
                 logger.debug(f"Checked image at: {capture_time:%H:%M:%S} Motion detected: {motion_detected}")
                 
-                if motion_detected or (
+                if motion_detected or pir or (
                     (capture_time - time_of_last_save).total_seconds()
                     > self._save_every_seconds
                 ):
@@ -81,6 +85,7 @@ class ImageCaptureLoop:
                         current_array,
                         capture_time,
                         motion_detected,
+                        pir,
                         self._algorithm.get_object_detection_data(algorithm_data),
                     )
                 time_of_last_save = capture_time

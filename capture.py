@@ -9,11 +9,13 @@ from picamera2 import Picamera2
 
 import keyboard_input
 import stats_file
+import monitor_pir
 from image_capture_loop import ImageCaptureLoop
 from image_saver import ImageSaver
 
 
 Picamera2.set_logging(logging.ERROR)
+pir_thread = None
 
 def command_line_handler(signum, frame):
     # res = input("Ctrl-c was pressed. Do you really want to exit? y/n ")
@@ -75,6 +77,7 @@ def load_config():
 def stop():
     # stop_event.set()  # Signal the thread to stop
     # thread.join()
+    pir_thread.stop()
     sys.exit(1)
 
 
@@ -82,13 +85,15 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     config = load_config()
 
-    image_capture_loop = ImageCaptureLoop(config)
+    pir_thread = monitor_pir.MonitorPIR(config)
+    pir_thread.start()
+
+    image_capture_loop = ImageCaptureLoop(config, pir_thread)
 
     image_saver = ImageSaver()
     image_saver.set_config(config)
 
     stats_file.start_stats_thread(config)
-
 
     # Image Processing Thread
 

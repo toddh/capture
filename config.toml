@@ -42,3 +42,8 @@ preview = false
 
 [stats]
 interval = 600
+
+[pir]
+check_pir = true
+line = 4
+dwell = 0.2

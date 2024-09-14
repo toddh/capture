@@ -29,7 +29,7 @@ class ImageSaver:
     def set_config(self, config):
         self._config = config
 
-    def save_array(self, array, recording_time, motion_detected, algorithm_data):
+    def save_array(self, array, recording_time, motion_detected, pir, algorithm_data):
         if motion_detected:
             file_name = f"{self._config['capture']['output_dir']}{platform.node()}-{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-d.jpg"
         else:
@@ -41,6 +41,7 @@ class ImageSaver:
             if self._config["capture"]["save_images"]:
                 # This link was useful for this. I had trouble just using PILLOW. https://stackoverflow.com/a/63649983
                 txt = algorithm_data
+
                 exif_ifd = {piexif.ExifIFD.UserComment: txt.encode()}
 
                 exif_dict = {"0th": {}, "Exif": exif_ifd, "1st": {},
