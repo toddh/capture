@@ -2,9 +2,10 @@ import logging
 import platform
 
 import piexif
+import piexif.helper
+
 from PIL import Image
 from PIL.ExifTags import TAGS
-
 
 def get_exif_tag_id(tag_name):
     for tag_id, name in TAGS.items():
@@ -81,6 +82,7 @@ class ImageSaver:
             if self._config["capture"]["save_images"]:
 
                 exif_bytes = self.format_exif(
+                    recording_time,
                     self._config["capture"]["camera_name"],
                     motion_detected,
                     pir,
@@ -99,6 +101,7 @@ class ImageSaver:
         try:
             if self._config["capture"]["save_images"]:
                 exif_bytes = self.format_exif(
+                    recording_time,
                     self._config["capture"]["camera_name"],
                     False,
                     False,

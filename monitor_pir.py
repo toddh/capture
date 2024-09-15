@@ -1,4 +1,4 @@
-
+import logging
 import threading
 import gpiod
 import time
@@ -24,6 +24,8 @@ class MonitorPIR(threading.Thread):
         return self._stop_event.is_set()
 
     def _poll_pir(self, config):
+        logger = logging.getLogger()
+
         while not self._stop_event.is_set():
 
             if self._config["pir"]["check_pir"]:
@@ -34,8 +36,9 @@ class MonitorPIR(threading.Thread):
                 else:
                     self.__pir_detected = True
 
-            time.sleep(self._config["pir"]["dwell"])
+            logger.debug(f"Checking PIR: {'True' if self.__pir_detected else 'False'}")
 
+            time.sleep(self._config["pir"]["dwell"])
 
         if self._config["pir"]["check_pir"]:
             self._line.release()
