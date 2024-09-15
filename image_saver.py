@@ -1,14 +1,17 @@
 import logging
 import platform
+
 import piexif
-from PIL.ExifTags import TAGS
 from PIL import Image
+from PIL.ExifTags import TAGS
+
 
 def get_exif_tag_id(tag_name):
     for tag_id, name in TAGS.items():
         if name == tag_name:
             return tag_id
     return None
+
 
 def singleton(cls):
     instances = {}  # Dictionary to store the single instance
@@ -20,6 +23,7 @@ def singleton(cls):
 
     return get_instance
 
+
 @singleton
 class ImageSaver:
     def __init__(self):
@@ -28,6 +32,42 @@ class ImageSaver:
 
     def set_config(self, config):
         self._config = config
+
+    def format_exif(
+        self, image_time, camera_name, motion_detected, pir, algorithm_data
+    ):
+        user_comment = {}
+        user_comment["camera_name"] = camera_name
+        user_comment["motion_detected"] = motion_detected
+        user_comment["pir"] = pir
+        user_comment["algorithm_data"] = algorithm_data
+
+        formatted_comment = piexif.helper.UserComment.dump(str(user_comment))
+
+        formatted_model = f"{'PIR' if pir else 'NoPIR'} - {'MOTION' if motion_detected else 'NoMotion'}".encode()
+
+        time_str = image_time.strftime("%Y:%m:%d %H:%M:%S")
+
+        zeroth_ifd = {
+            piexif.ImageIFD.Make: u"Camera Module 3",
+            piexif.ImageIFD.Model: formatted_model
+        }
+        exif_ifd = {
+            piexif.ExifIFD.DateTimeOriginal: time_str,
+            piexif.ExifIFD.UserComment: formatted_comment,
+        }
+        gps_ifd = {}
+        first_ifd = {}
+
+        exif_dict = {
+            "0th": zeroth_ifd,
+            "Exif": exif_ifd,
+            "GPS": gps_ifd,
+            "1st": first_ifd,
+        }
+        exif_bytes = piexif.dump(exif_dict)
+
+        return exif_bytes
 
     def save_array(self, array, recording_time, motion_detected, pir, algorithm_data):
         if motion_detected:
@@ -39,16 +79,15 @@ class ImageSaver:
 
         try:
             if self._config["capture"]["save_images"]:
-                # This link was useful for this. I had trouble just using PILLOW. https://stackoverflow.com/a/63649983
-                txt = algorithm_data
 
-                exif_ifd = {piexif.ExifIFD.UserComment: txt.encode()}
+                exif_bytes = self.format_exif(
+                    self._config["capture"]["camera_name"],
+                    motion_detected,
+                    pir,
+                    algorithm_data,
+                )
 
-                exif_dict = {"0th": {}, "Exif": exif_ifd, "1st": {},
-                        "thumbnail": None, "GPS": {}}
-
-                exif_dat = piexif.dump(exif_dict)
-                image.save(file_name, exif=exif_dat)
+                image.save(file_name, exif=exif_bytes)
         except Exception as e:
             self._logger.error(f"An error occurred saving the image: {e}")
 
@@ -59,18 +98,16 @@ class ImageSaver:
 
         try:
             if self._config["capture"]["save_images"]:
-                # This link was useful for this. I had trouble just using PILLOW. https://stackoverflow.com/a/63649983
-                txt = algorithm_data
-                exif_ifd = {piexif.ExifIFD.UserComment: txt.encode()}
+                exif_bytes = self.format_exif(
+                    self._config["capture"]["camera_name"],
+                    False,
+                    False,
+                    algorithm_data,
+                )
 
-                exif_dict = {"0th": {}, "Exif": exif_ifd, "1st": {},
-                        "thumbnail": None, "GPS": {}}
-
-                exif_dat = piexif.dump(exif_dict)
-                image.save(file_name, exif=exif_dat)
+                image.save(file_name, exif=exif_bytes)
         except Exception as e:
             self._logger.error(f"An error occurred saving the image: {e}")
-
 
     # def save_image(self, image, recording_time, motion_detected, algorithm_data):
     #     if motion_detected:
