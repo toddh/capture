@@ -11,7 +11,6 @@ from picamera2 import Preview
 # from histogram_difference import HistogramDifference
 from image_saver import ImageSaver
 from opencv_object_detection import OpenCVObjectDetection
-import monitor_pir
 
 class ImageCaptureLoop:
     """This class is the overall motion detector loop.  Currently, it only supports the OpenCV algorithm."""
