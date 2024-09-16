@@ -40,9 +40,7 @@ class ImageCaptureLoop:
         self.loop()
 
     def loop(self):
-        time_of_last_save = (
-            datetime.datetime.now()
-        )  # Not really last image, but default value so math works
+        time_of_last_save = datetime.datetime(datetime.MINYEAR, 1, 1, tzinfo=None)
 
         # keyboard_input.print_overrides()
 
