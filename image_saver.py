@@ -7,6 +7,7 @@ import piexif.helper
 from PIL import Image
 from PIL.ExifTags import TAGS
 
+
 def get_exif_tag_id(tag_name):
     for tag_id, name in TAGS.items():
         if name == tag_name:
@@ -50,8 +51,8 @@ class ImageSaver:
         time_str = image_time.strftime("%Y:%m:%d %H:%M:%S")
 
         zeroth_ifd = {
-            piexif.ImageIFD.Make: u"Camera Module 3",
-            piexif.ImageIFD.Model: formatted_model
+            piexif.ImageIFD.Make: "Camera Module 3",
+            piexif.ImageIFD.Model: formatted_model,
         }
         exif_ifd = {
             piexif.ExifIFD.DateTimeOriginal: time_str,
@@ -70,92 +71,63 @@ class ImageSaver:
 
         return exif_bytes
 
-    def save_array(self, array, recording_time, motion_detected, pir, algorithm_data):
-        if motion_detected:
-            file_name = f"{self._config['capture']['output_dir']}{platform.node()}-{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-d.jpg"
-        else:
-            file_name = f"{self._config['capture']['output_dir']}{platform.node()}-{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}.jpg"
+    def format_file_name(
+        self, node, capture_time, camera_name, motion_detected, pir, stream_name
+    ):
+        file_name = (
+            f"{self._config['capture']['output_dir']}{node}-",
+            f"{capture_time:%Y-%m-%d %H-%M-%S}.{capture_time.microsecond // 1000:05d}-",
+            f"c{camera_name}-"
+            f"{'M' if motion_detected else 'n'}",
+            f"{'P' if pir else 'n'}-",
+            f"{stream_name:_<5s}.jpg",
+        )
 
-        image = Image.fromarray(array).convert("RGB")
+        return file_name
 
+    def save_array(
+        self,
+        lores_array,
+        main_array,
+        capture_time,
+        motion_detected,
+        pir,
+        camera_name,
+        algorithm_data,
+    ):
+        """Save an array. Either intermediate or final.
+
+        Args:
+            lowres_array (_type_): The Array received from picamera2 get array
+            hires_array (_type_): The Array received from picamera2 get array
+            capture_time (datetime): When was the image taken
+            motion_detected (boolean?): Did the algorithm detect motion.  Could be None if we don't know.
+            pir (boolean?): Did the PIR detect motion. Could be None if we don't know.
+            camera_name (string): What stream is this? "lores" or "main"
+            image_tag (char): Where does this come from in the processing chain? 'd' = detection image, 'i' = intermediate image, 't' = timed image
+            algorithm_data (ditectionary): dictionary of data from the algorithm.
+        """
         try:
             if self._config["capture"]["save_images"]:
-
                 exif_bytes = self.format_exif(
-                    recording_time,
+                    capture_time,
                     self._config["capture"]["camera_name"],
                     motion_detected,
                     pir,
                     algorithm_data,
                 )
 
-                image.save(file_name, exif=exif_bytes)
-        except Exception as e:
-            self._logger.error(f"An error occurred saving the image: {e}")
-
-    def save_intermediate_array(self, array, recording_time, algorithm_data):
-        file_name = f"{self._config['capture']['output_dir']}{platform.node()}-{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-1.jpg"
-
-        image = Image.fromarray(array).convert("RGB")
-
-        try:
-            if self._config["capture"]["save_images"]:
-                exif_bytes = self.format_exif(
-                    recording_time,
-                    self._config["capture"]["camera_name"],
-                    False,
-                    False,
-                    algorithm_data,
+                image = Image.fromarray(lores_array).convert("RGB")
+                file_name = self.format_file_name(
+                    platform.node(), capture_time, camera_name, motion_detected, pir, "lores"
                 )
-
                 image.save(file_name, exif=exif_bytes)
+
+                image = Image.fromarray(main_array).convert("RGB")
+                file_name = self.format_file_name(
+                    platform.node(), capture_time, camera_name, motion_detected, pir, "main"
+                )
+                image.save(file_name, exif=exif_bytes)
+
         except Exception as e:
             self._logger.error(f"An error occurred saving the image: {e}")
-
-    # def save_image(self, image, recording_time, motion_detected, algorithm_data):
-    #     if motion_detected:
-    #         file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-d.jpg"
-    #     else:
-    #         file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}.jpg"
-
-    #     try:
-    #         if self._config["capture"]["save_images"]:
-    #             # This link was useful for this. I had trouble just using PILLOW. https://stackoverflow.com/a/63649983
-    #             txt = f"1234578 {algorithm_data['hist_diff']:.0f}\n"
-    #             exif_ifd = {piexif.ExifIFD.UserComment: txt.encode()}
-
-    #             exif_dict = {"0th": {}, "Exif": exif_ifd, "1st": {},
-    #                     "thumbnail": None, "GPS": {}}
-
-    #             exif_dat = piexif.dump(exif_dict)
-    #             image.save(file_name, exif=exif_dat)
-    #     except Exception as e:
-    #         logging.error(f"An error occurred saving the image: {e}")
-
-    # def save_intermediate_image(self, image, recording_time, algorithm_data):
-    #     file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-2.jpg"
-
-    #     try:
-    #         image.save(file_name)
-    #     except Exception as e:
-    #         logging.error(f"An error occurred saving the image: {e}")
-
-    # def save_intermediate_images(self, current_image, previous_image, recording_time, algorithm_data):
-    #     current_file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-2.jpg"
-    #     previous_file_name = f"{self._config['capture']['output_dir']}{recording_time:%Y-%m-%d %H%M%S}.{recording_time.microsecond // 1000:05d}-1.jpg"
-
-    #     try:
-    #         # txt = f"1234578 {algorithm_data['hist_diff']:.0f}\n"
-    #         txt = "1234579Data will go here\n"
-    #         exif_ifd = {piexif.ExifIFD.UserComment: txt.encode()}
-
-    #         exif_dict = {"0th": {}, "Exif": exif_ifd, "1st": {},
-    #                 "thumbnail": None, "GPS": {}}
-
-    #         exif_dat = piexif.dump(exif_dict)
-
-    #         current_image.save(current_file_name, exif=exif_dat)
-    #         previous_image.save(previous_file_name,  exif=exif_dat)
-
-    #     except Exception as e:
-    #         logging.error(f"An error occurred saving the image: {e}")
