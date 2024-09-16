@@ -13,6 +13,7 @@ from image_saver import ImageSaver
 from opencv_object_detection import OpenCVObjectDetection
 import monitor_pir
 
+
 class ImageCaptureLoop:
     """This class is the overall motion detector loop.  Currently, it only supports the OpenCV algorithm."""
 
@@ -40,7 +41,6 @@ class ImageCaptureLoop:
         self.loop()
 
     def loop(self):
-        # previous_image = self._picam2.capture_image("main")
         time_of_last_save = (
             datetime.datetime.now()
         )  # Not really last image, but default value so math works
@@ -50,21 +50,23 @@ class ImageCaptureLoop:
         logger = logging.getLogger()
         logger.debug(f"initiating loop with config: {str(self._config)}")
 
-
         while True:
             try:
                 pir = self._pir_thread.pir_detected()
 
-                if self._config["capture"]["process_stream"] == "lores":
-                    current_array = self._picam2.capture_array("lores")
-                else:
-                    current_array = self._picam2.capture_array("main")
-
+                # TODO: Refactor this to take picture on both cameras (optionall)
+                lores_array = self._picam2.capture_array("lores")
+                main_array = self._picam2.capture_array("main")
                 capture_time = datetime.datetime.now()
 
                 algorithm_data = {}
+                algorithm_data["camera_name"] = self._config["capture"]["camera_name"]
+                algorithm_data["pir"] = "True" if pir else "False"
+
+                # Design decision - always run the algorithm on the lores array.
+
                 motion_detected = self._algorithm.detect_motion(
-                    current_array, capture_time, pir, algorithm_data
+                    lores_array, capture_time, algorithm_data
                 )
 
                 if self._config["capture"]["print_data"]:
@@ -72,25 +74,28 @@ class ImageCaptureLoop:
                         algorithm_data, motion_detected
                     )
 
-                logger.debug(f"Checked image at: {capture_time:%H:%M:%S} Motion detected: {motion_detected}")
-                
-                if motion_detected or pir or (
-                    (capture_time - time_of_last_save).total_seconds()
-                    > self._save_every_seconds
-                ):
-                    if self._config["capture"]["process_stream"] == "lores":
-                         current_array = self._picam2.capture_array("main")
+                logger.debug(
+                    f"Checked image at: {capture_time:%H:%M:%S} Motion detected: {motion_detected}"
+                )
 
+                if (
+                    motion_detected
+                    or pir
+                    or (
+                        (capture_time - time_of_last_save).total_seconds()
+                        > self._save_every_seconds
+                    )
+                ):
                     self.__image_saver.save_array(
-                        current_array,
+                        lores_array,
+                        main_array,
                         capture_time,
                         motion_detected,
                         pir,
+                        self._config["capture"]["process_stream"],
                         self._algorithm.get_object_detection_data(algorithm_data),
                     )
-                time_of_last_save = capture_time
-
-                # previous_image = current_image
+                    time_of_last_save = capture_time
 
                 # key = keyboard_input.pressed_key()
                 # if key is not None:
@@ -103,31 +108,28 @@ class ImageCaptureLoop:
 
             sleep(self._config["capture"]["interval"])
 
-
-
     def __set_up_camera(self, enable_preview):
         """
         Configures the camera, preview window and encoder.
 
+        Design decision: I always leave the main stream at the default size.
+
         :param enable_preview: enables preview window
         """
 
-        # TODO: Reenable setting the size of the main stream
-        
-        if self._config['capture']['flip']:
+        if self._config["capture"]["flip"]:
             transform = Transform(vflip=True, hflip=True)
         else:
             transform = Transform()
         still_config = self._picam2.create_still_configuration(
             transform=transform,
             buffer_count=4,
-            main={"format": "XBGR8888"
-            },
+            main={"format": "XBGR8888"},
             lores={
                 "format": "XBGR8888",
                 "size": (
-                self._config["capture"]["lores"]["width"],
-                self._config["capture"]["lores"]["height"],
+                    self._config["capture"]["lores"]["width"],
+                    self._config["capture"]["lores"]["height"],
                 ),
             },
             display="lores",

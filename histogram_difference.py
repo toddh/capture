@@ -1,7 +1,7 @@
 from PIL import ImageFilter
 
 from image_saver import ImageSaver
-from  stats_fileimport import accumulate_stats
+from stats_file import import accumulate_stats
 
 
 class HistogramDifference:
@@ -16,7 +16,9 @@ class HistogramDifference:
         self._image_saver.set_config(config)
 
     # TODO: Determine whether we want to detect motion on the lores image for efficiency
-    def detect_motion(self, current_image, previous_image, recording_time, algorithm_data):
+    def detect_motion(
+        self, current_image, previous_image, recording_time, algorithm_data
+    ):
         algorithm_data["name"] = "histogram"
 
         if self._config["histogram"]["blur"]:
@@ -39,8 +41,10 @@ class HistogramDifference:
         accumulate_stats(recording_time, hist_diff)
 
         if hist_diff > self._config["histogram"]["min_hist_diff"]:
-            if self._config['capture']['save_intermediate_images']:
-                self._image_saver.save_intermediate_images(current_image, previous_image, recording_time, algorithm_data)
+            if self._config["capture"]["save_intermediate_images"]:
+                self._image_saver.save_intermediate_images(
+                    current_image, previous_image, recording_time, algorithm_data
+                )
             return True
         else:
             return False

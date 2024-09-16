@@ -21,12 +21,11 @@ class OpenCVObjectDetection:
         self._classes = ["background", "aeroplane", "bicycle", "bird", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "sheep", "sofa", "train", "tvmonitor"]
 
     # TODO: Determine whether we want to detect motion on the lores image for efficiency
-    def detect_motion(self, current_array, recording_time, pir, algorithm_data):
+    def detect_motion(self, current_array, recording_time, algorithm_data):
         logger = logging.getLogger()
 
         algorithm_data["name"] = "opencv"
         algorithm_data["opencv"] = {}
-        algorithm_data["pir"] = "True" if pir else "False"
 
         three_channel = cv2.cvtColor(current_array, cv2.COLOR_RGBA2BGR)
         blob = cv2.dnn.blobFromImage(cv2.resize(three_channel, (300, 300)), 0.007843, (300, 300), 127.5)
