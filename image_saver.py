@@ -111,7 +111,7 @@ class ImageSaver:
             if self._config["capture"]["save_images"]:
                 exif_bytes = self.format_exif(
                     capture_time,
-                    self._config["capture"]["camera_num"],
+                    camera_num,
                     motion_detected,
                     pir,
                     algorithm_data,
@@ -119,13 +119,13 @@ class ImageSaver:
 
                 image = Image.fromarray(lores_array).convert("RGB")
                 file_name = self.format_file_name(
-                    platform.node(), capture_time, camera_num, motion_detected, pir, "lores"
+                    platform.node(), capture_time, str(camera_num), motion_detected, pir, "lores"
                 )
                 image.save(file_name, exif=exif_bytes)
 
                 image = Image.fromarray(main_array).convert("RGB")
                 file_name = self.format_file_name(
-                    platform.node(), capture_time, camera_num, motion_detected, pir, "main"
+                    platform.node(), capture_time, str(camera_num), motion_detected, pir, "Main"        # Make it a capital M so it sorts before the lores stream
                 )
                 image.save(file_name, exif=exif_bytes)
 

@@ -61,8 +61,8 @@ class ImageCaptureLoop:
 
                 capture_arrays = []
                 for picam in self._camera_list:
-                    lores_array = self._picam2.capture_array("lores")
-                    main_array = self._picam2.capture_array("main")
+                    lores_array = picam.capture_array("lores")
+                    main_array = picam.capture_array("main")
                     capture_arrays.append(
                         [lores_array, main_array]
                     )  # capture_arrays is an array where each element is also an array. The first item in the element is the lores array. The second is the main.
