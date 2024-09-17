@@ -36,10 +36,10 @@ class ImageSaver:
         self._config = config
 
     def format_exif(
-        self, image_time, camera_name, motion_detected, pir, algorithm_data
+        self, image_time, camera_num, motion_detected, pir, algorithm_data
     ):
         user_comment = {}
-        user_comment["camera_name"] = camera_name
+        user_comment["camera_num"] = camera_num
         user_comment["motion_detected"] = motion_detected
         user_comment["pir"] = pir
         user_comment["algorithm_data"] = algorithm_data
@@ -72,12 +72,12 @@ class ImageSaver:
         return exif_bytes
 
     def format_file_name(
-        self, node, capture_time, camera_name, motion_detected, pir, stream_name
+        self, node, capture_time, camera_num, motion_detected, pir, stream_name
     ):
         file_name = (
             f"{self._config['capture']['output_dir']}{node}-"
             f"{capture_time:%Y-%m-%d %H.%M.%S}.{capture_time.microsecond // 1000:05d}-"
-            f"c{camera_name}-"
+            f"c{camera_num}-"
             f"{'M' if motion_detected else 'n'}-"
             f"{'P' if pir else 'n'}-"
             f"{stream_name:_<5s}.jpg"
@@ -92,7 +92,7 @@ class ImageSaver:
         capture_time,
         motion_detected,
         pir,
-        camera_name,
+        camera_num,
         algorithm_data,
     ):
         """Save an array. Either intermediate or final.
@@ -103,7 +103,7 @@ class ImageSaver:
             capture_time (datetime): When was the image taken
             motion_detected (boolean?): Did the algorithm detect motion.  Could be None if we don't know.
             pir (boolean?): Did the PIR detect motion. Could be None if we don't know.
-            camera_name (string): What stream is this? "lores" or "main"
+            camera_num (string): What stream is this? "lores" or "main"
             image_tag (char): Where does this come from in the processing chain? 'd' = detection image, 'i' = intermediate image, 't' = timed image
             algorithm_data (ditectionary): dictionary of data from the algorithm.
         """
@@ -111,7 +111,7 @@ class ImageSaver:
             if self._config["capture"]["save_images"]:
                 exif_bytes = self.format_exif(
                     capture_time,
-                    self._config["capture"]["camera_name"],
+                    self._config["capture"]["camera_num"],
                     motion_detected,
                     pir,
                     algorithm_data,
@@ -119,13 +119,13 @@ class ImageSaver:
 
                 image = Image.fromarray(lores_array).convert("RGB")
                 file_name = self.format_file_name(
-                    platform.node(), capture_time, camera_name, motion_detected, pir, "lores"
+                    platform.node(), capture_time, camera_num, motion_detected, pir, "lores"
                 )
                 image.save(file_name, exif=exif_bytes)
 
                 image = Image.fromarray(main_array).convert("RGB")
                 file_name = self.format_file_name(
-                    platform.node(), capture_time, camera_name, motion_detected, pir, "main"
+                    platform.node(), capture_time, camera_num, motion_detected, pir, "main"
                 )
                 image.save(file_name, exif=exif_bytes)
 

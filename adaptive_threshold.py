@@ -14,13 +14,9 @@ class AdaptiveThreshold:
 
         algorithm_data["name"] = "adaptive_threshold"
 
-        # TODO: Determine how to make this more robust. What happens if we change the format of image we are capturing?
-        # TODO: Do we need to convert to a numpy array?
-
         if self._config["adaptive_threshold"]["blur"]:
             current_image = current_image.filter(ImageFilter.GaussianBlur(75))
             previous_image = previous_image.filter(ImageFilter.GaussianBlur(75))
-        # TODO: Determine if this is necessary with adaptive thresholding
 
         # Convert PIL images to NumPy arrays if necessary
         if isinstance(current_image, Image.Image):
@@ -42,7 +38,6 @@ class AdaptiveThreshold:
         thresh = cv2.adaptiveThreshold(
             diff, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 5, -2
         )
-        # TODO: Figure out why we are using -2 rather than +2.
 
         # thresh_zeros = cv2.adaptiveThreshold(
         #     zeros, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, -1

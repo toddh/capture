@@ -16,11 +16,9 @@ class OpenCVObjectDetection:
         self._image_saver = ImageSaver()
         self._image_saver.set_config(config)
 
-        # TODO: See if there is a better model for us to use
         self._net = cv2.dnn.readNetFromCaffe('MobileNetSSD_deploy.prototxt.txt', 'MobileNetSSD_deploy.caffemodel')
         self._classes = ["background", "aeroplane", "bicycle", "bird", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "sheep", "sofa", "train", "tvmonitor"]
 
-    # TODO: Determine whether we want to detect motion on the lores image for efficiency
     def detect_motion(self, current_array, recording_time, algorithm_data):
         logger = logging.getLogger()
 

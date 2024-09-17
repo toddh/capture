@@ -19,27 +19,35 @@ class ImageCaptureLoop:
     def __init__(self, config, pir_thread):
         self._config = config
 
-        self._picam2 = Picamera2(config["capture"]["camera_name"])
-
-        self.__set_up_camera(config["preview"]["enable"])
+        self._camera_list = self.__set_up_cameras(
+            config["capture"]["cameras"], config["preview"]["enable"]
+        )
 
         # self._algorithm = HistogramDifference(config)
         # self._algorithm = AdaptiveThreshold(config)
         self._algorithm = OpenCVObjectDetection(config)
 
-        self.__image_saver = ImageSaver()
+        self._image_saver = ImageSaver()
         self._save_every_seconds = config["capture"]["save_anyways_hours"] * 3600
 
         self._pir_thread = pir_thread
 
     def start(self):
         """
-        Starts the camera and runs the loop.
+        Starts the cameras and run the loop.
         """
-        self._picam2.start()
+
+        for camera in self._camera_list:
+            camera.start()
+
         self.loop()
 
     def loop(self):
+        """
+        Repeated loop. Each iteration capture images from all cameras and then processes it.
+
+        The loop also checks the PIR to determine if images should be captured.
+        """
         time_of_last_save = datetime.datetime(datetime.MINYEAR, 1, 1, tzinfo=None)
 
         # keyboard_input.print_overrides()
@@ -51,47 +59,56 @@ class ImageCaptureLoop:
             try:
                 pir = self._pir_thread.pir_detected()
 
-                # TODO: Refactor this to take picture on both cameras (optionall)
-                lores_array = self._picam2.capture_array("lores")
-                main_array = self._picam2.capture_array("main")
+                capture_arrays = []
+                for picam in self._camera_list:
+                    lores_array = self._picam2.capture_array("lores")
+                    main_array = self._picam2.capture_array("main")
+                    capture_arrays.append(
+                        [lores_array, main_array]
+                    )  # capture_arrays is an array where each element is also an array. The first item in the element is the lores array. The second is the main.
+
                 capture_time = datetime.datetime.now()
 
                 algorithm_data = {}
-                algorithm_data["camera_name"] = self._config["capture"]["camera_name"]
                 algorithm_data["pir"] = "True" if pir else "False"
 
-                # Design decision - always run the algorithm on the lores array.
+                any_motion_detected = False
 
-                motion_detected = self._algorithm.detect_motion(
-                    lores_array, capture_time, algorithm_data
-                )
+                for i in range(len(capture_arrays)):
+                    datum = {}
+                    datum["camera_name"] = i
+                    any_motion_detected = self._algorithm.detect_motion(
+                        capture_arrays[i][0], capture_time, datum
+                    )  # Design decision - always run the algorithm on the lores array.
+                    algorithm_data[str(i)] = datum
 
                 if self._config["capture"]["print_data"]:
                     self._algorithm.print_algorithm_data(
-                        algorithm_data, motion_detected
+                        algorithm_data, any_motion_detected
                     )
 
                 logger.debug(
-                    f"Checked image at: {capture_time:%H:%M:%S} Motion detected: {motion_detected}"
+                    f"Checked images at: {capture_time:%H:%M:%S} Motion detected: {any_motion_detected}"
                 )
 
                 if (
-                    motion_detected
+                    any_motion_detected
                     or pir
                     or (
                         (capture_time - time_of_last_save).total_seconds()
                         > self._save_every_seconds
                     )
                 ):
-                    self.__image_saver.save_array(
-                        lores_array,
-                        main_array,
-                        capture_time,
-                        motion_detected,
-                        pir,
-                        self._config["capture"]["process_stream"],
-                        self._algorithm.get_object_detection_data(algorithm_data),
-                    )
+                    for i in range(len(capture_arrays)):
+                        self._image_saver.save_array(
+                            capture_arrays[i][0],
+                            capture_arrays[i][1],
+                            capture_time,
+                            any_motion_detected,
+                            pir,
+                            i,
+                            self._algorithm.get_object_detection_data(algorithm_data),
+                        )
                     time_of_last_save = capture_time
 
                 # key = keyboard_input.pressed_key()
@@ -105,7 +122,7 @@ class ImageCaptureLoop:
 
             sleep(self._config["capture"]["interval"])
 
-    def __set_up_camera(self, enable_preview):
+    def __set_up_cameras(self, cameras, enable_preview):
         """
         Configures the camera, preview window and encoder.
 
@@ -114,36 +131,45 @@ class ImageCaptureLoop:
         :param enable_preview: enables preview window
         """
 
-        if self._config["capture"]["flip"]:
-            transform = Transform(vflip=True, hflip=True)
-        else:
-            transform = Transform()
-        still_config = self._picam2.create_still_configuration(
-            transform=transform,
-            buffer_count=4,
-            main={"format": "XBGR8888"},
-            lores={
-                "format": "XBGR8888",
-                "size": (
-                    self._config["capture"]["lores"]["width"],
-                    self._config["capture"]["lores"]["height"],
-                ),
-            },
-            display="lores",
-        )
+        camera_list = []
 
-        logging.info(f"_picam2 config: {still_config}")
+        for camera_num in cameras:
+            picam = Picamera2(camera_num)
 
-        self._picam2.configure(still_config)
-
-        if enable_preview:
-            self._picam2.start_preview(
-                Preview.QTGL,
-                x=self._config["preview"]["x"],
-                y=self._config["preview"]["y"],
-                width=self._config["preview"]["width"],
-                height=self._config["preview"]["height"],
+            if self._config["capture"]["flip"]:
+                transform = Transform(vflip=True, hflip=True)
+            else:
+                transform = Transform()
+            still_config = picam.create_still_configuration(
+                transform=transform,
+                buffer_count=4,
+                main={"format": "XBGR8888"},
+                lores={
+                    "format": "XBGR8888",
+                    "size": (
+                        self._config["capture"]["lores"]["width"],
+                        self._config["capture"]["lores"]["height"],
+                    ),
+                },
+                display="lores",
             )
+
+            logging.info(f"picam2 number {camera_num} config: {still_config}")
+
+            picam.configure(still_config)
+
+            if enable_preview:
+                self._picam2.start_preview(
+                    Preview.QTGL,
+                    x=self._config["preview"]["x"],
+                    y=self._config["preview"]["y"],
+                    width=self._config["preview"]["width"],
+                    height=self._config["preview"]["height"],
+                )
+
+            camera_list.append(picam)
+
+        return camera_list
 
     def __set_zoom_factor(self):
         """
