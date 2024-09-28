@@ -64,8 +64,9 @@ class OpenCVObjectDetection:
                         #     break
 
                     # print(f"Detected {self._classes[class_id]} with confidence {confidence:.2f}")
-                    algorithm_data['opencv'][self._classes[class_id]] = confidence
-                    cnt += 1
+                    if self._classes[class_id] != 'car':
+                        algorithm_data['opencv'][self._classes[class_id]] = confidence
+                        cnt += 1
 
         logger.debug(f"Detected {cnt} objects")
 

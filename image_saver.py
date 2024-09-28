@@ -117,11 +117,11 @@ class ImageSaver:
                     algorithm_data,
                 )
 
-                image = Image.fromarray(lores_array).convert("RGB")
-                file_name = self.format_file_name(
-                    platform.node(), capture_time, str(camera_num), motion_detected, pir, "lores"
-                )
-                image.save(file_name, exif=exif_bytes)
+                # image = Image.fromarray(lores_array).convert("RGB")
+                # file_name = self.format_file_name(
+                #     platform.node(), capture_time, str(camera_num), motion_detected, pir, "lores"
+                # )
+                # image.save(file_name, exif=exif_bytes)
 
                 image = Image.fromarray(main_array).convert("RGB")
                 file_name = self.format_file_name(
