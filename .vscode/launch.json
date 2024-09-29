@@ -11,6 +11,8 @@
             "request": "launch",
             "module": "capture",
             "args": [
+                "-p",
+                "-d",
             ],
         }
     ]

@@ -114,10 +114,8 @@ class ImageCaptureLoop:
                 # key = keyboard_input.pressed_key()
                 # if key is not None:
                 #     keyboard_input.input_override(key, self._config)
-
-            except Exception as e:
-                logging.error(f"An error occurred in the image capture loop: {e}")
-                traceback.print_exc()
+            # print(f"{i}: Class: {class_id} score: {detection_scores[0, i]} box: ({str(rectangle)})")
+raceback.print_exc()
                 continue
 
             sleep(self._config["capture"]["interval"])
@@ -159,7 +157,7 @@ class ImageCaptureLoop:
             picam.configure(still_config)
 
             if enable_preview:
-                self._picam2.start_preview(
+                picam.start_preview(
                     Preview.QTGL,
                     x=self._config["preview"]["x"],
                     y=self._config["preview"]["y"],
@@ -171,16 +169,17 @@ class ImageCaptureLoop:
 
         return camera_list
 
-    def __set_zoom_factor(self):
-        """
-        Sets the zoom factor of the camera.
-        """
-        size = self._picam2.capture_metadata()["ScalerCrop"][2:]
-        self._picam2.capture_metadata()
-        size = [int(s * self.__zoom_factor) for s in size]
-        offset = [(r - s) // 2 for r, s in zip(self._picam2.sensor_resolution, size)]
-        self._picam2.set_controls({"ScalerCrop": offset + size})
+    # def __set_zoom_factor(self):
+    #     """
+    #     Sets the zoom factor of the camera.
+    #     """
+    #     size = self._picam2.capture_metadata()["ScalerCrop"][2:]
+    #     self._picam2.capture_metadata()
+    #     size = [int(s * self.__zoom_factor) for s in size]
+    #     offset = [(r - s) // 2 for r, s in zip(self._picam2.sensor_resolution, size)]
+    #     self._picam2.set_controls({"ScalerCrop": offset + size})
 
+    # TODO: Call this when appropriate. Figure out how we're handling the camera array.
     def cleanup(self):
         """
         Cleans up the camera and preview window.
