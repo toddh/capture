@@ -10,11 +10,15 @@ from picamera2 import Preview
 # from adaptive_threshold import AdaptiveThreshold
 # from histogram_difference import HistogramDifference
 from image_saver import ImageSaver
-from opencv_object_detection import OpenCVObjectDetection
+# from opencv_object_detection import OpenCVObjectDetection
+from tensor_flow_detect import TensorFlowDetect
 
 
 class ImageCaptureLoop:
-    """This class is the overall motion detector loop.  Currently, it only supports the OpenCV algorithm."""
+    """This class is the overall motion detector loop.
+
+       Supported opencv_object_detection. Adding tensor_flow_detect.
+    """
 
     def __init__(self, config, pir_thread):
         self._config = config
@@ -25,7 +29,8 @@ class ImageCaptureLoop:
 
         # self._algorithm = HistogramDifference(config)
         # self._algorithm = AdaptiveThreshold(config)
-        self._algorithm = OpenCVObjectDetection(config)
+        # self._algorithm = OpenCVObjectDetection(config)
+        self._algorithm = TensorFlowDetect(config)
 
         self._image_saver = ImageSaver()
         self._save_every_seconds = config["capture"]["save_anyways_hours"] * 3600
@@ -59,13 +64,24 @@ class ImageCaptureLoop:
             try:
                 pir = self._pir_thread.pir_detected()
 
-                capture_arrays = []
-                for picam in self._camera_list:
-                    lores_array = picam.capture_array("lores")
-                    main_array = picam.capture_array("main")
-                    capture_arrays.append(
-                        [lores_array, main_array]
-                    )  # capture_arrays is an array where each element is also an array. The first item in the element is the lores array. The second is the main.
+                # GET THE IMAGE
+                # TensorFlow uses capture_buffer.  OpenCV uses capture_array.
+                # "The capture_buffer method will give you the raw camera data for each frame (a JPEG"
+                # bitstream from an MJPEG camera, or an uncompressed YUYV image from a YUYV camera)"
+                # "capture_array() returns a numpy array representing the image"
+                # Both of these have a plural version.
+
+                grey = self._algorithm.get_image(self._camera_list[0])  # TODO: Either allow more than one in the code, or remove it as a config option
+                
+                # FORMER OPENCV CODE:
+                # capture_arrays = []
+                # for picam in self._camera_list:
+                #     lores_array = picam.capture_array("lores")
+                #     main_array = picam.capture_array("main")
+                #     capture_arrays.append(
+                #         [lores_array, main_array]
+                #     )  # capture_arrays is an array where each element is also an array. The first item in the element is the lores array. The second is the main.
+
 
                 capture_time = datetime.datetime.now()
 
@@ -74,13 +90,22 @@ class ImageCaptureLoop:
 
                 any_motion_detected = False
 
-                for i in range(len(capture_arrays)):
-                    datum = {}
-                    datum["camera_name"] = i
-                    any_motion_detected = self._algorithm.detect_motion(
-                        capture_arrays[i][0], capture_time, datum
-                    )  # Design decision - always run the algorithm on the lores array.
-                    algorithm_data[str(i)] = datum
+                # RUN INFERENCE AND PERFORM OBJECT DETECTION
+                num_detections = self._algorithm.InferenceTensorFlow(grey)
+                datum = {}
+                datum["camera_name"] = 0
+                datum["num_detections"] = num_detections
+                algorithm_data[str(i)] = datum
+                if num_detections > 0:
+                    any_motion_detected = True
+                # FORMER OPENCV CODE:
+                # for i in range(len(capture_arrays)):
+                #     datum = {}
+                #     datum["camera_name"] = i
+                #     any_motion_detected = self._algorithm.detect_motion(
+                #         capture_arrays[i][0], capture_time, datum
+                #     )  # Design decision - always run the algorithm on the lores array.
+                #     algorithm_data[str(i)] = datum
 
                 if self._config["capture"]["print_data"]:
                     self._algorithm.print_algorithm_data(
@@ -99,24 +124,40 @@ class ImageCaptureLoop:
                         > self._save_every_seconds
                     )
                 ):
-                    for i in range(len(capture_arrays)):
-                        self._image_saver.save_array(
-                            capture_arrays[i][0],
-                            capture_arrays[i][1],
-                            capture_time,
-                            any_motion_detected,
-                            pir,
-                            i,
-                            self._algorithm.get_object_detection_data(algorithm_data),
-                        )
+                    # SAVE THE IMAGE
+                     self._image_saver.save_array(
+                        self._camera_list[0].capture_array("lores"),
+                        self._camera_list[0].capture_array("main"),
+                        capture_time,
+                        any_motion_detected,
+                        pir,
+                        0,
+                        self._algorithm.get_object_detection_data(algorithm_data),
+                     )
+
+                    # FORMER OPENCV_CODE
+                    # for i in range(len(capture_arrays)):
+                    #     self._image_saver.save_array(
+                    #         capture_arrays[i][0],
+                    #         capture_arrays[i][1],
+                    #         capture_time,
+                    #         any_motion_detected,
+                    #         pir,
+                    #         i,
+                    #         self._algorithm.get_object_detection_data(algorithm_data),
+                    #     )
+
                     time_of_last_save = capture_time
 
                 # key = keyboard_input.pressed_key()
                 # if key is not None:
                 #     keyboard_input.input_override(key, self._config)
-            # print(f"{i}: Class: {class_id} score: {detection_scores[0, i]} box: ({str(rectangle)})")
-raceback.print_exc()
-                continue
+                # print(f"{i}: Class: {class_id} score: {detection_scores[0, i]} box: ({str(rectangle)})")
+
+            except Exception as e:
+                    logging.error(f"An error occurred in the image capture loop: {e}")
+                    traceback.print_exc()
+                    continue
 
             sleep(self._config["capture"]["interval"])
 
@@ -124,46 +165,50 @@ raceback.print_exc()
         """
         Configures the camera, preview window and encoder.
 
-        Design decision: I always leave the main stream at the default size.
-
+        :param cameras: a list of camera numbers to start.
         :param enable_preview: enables preview window
         """
 
         camera_list = []
 
         for camera_num in cameras:
-            picam = Picamera2(camera_num)
 
-            if self._config["capture"]["flip"]:
-                transform = Transform(vflip=True, hflip=True)
-            else:
-                transform = Transform()
-            still_config = picam.create_still_configuration(
-                transform=transform,
-                buffer_count=4,
-                main={"format": "XBGR8888"},
-                lores={
-                    "format": "XBGR8888",
-                    "size": (
-                        self._config["capture"]["lores"]["width"],
-                        self._config["capture"]["lores"]["height"],
-                    ),
-                },
-                display="lores",
-            )
+            picam = self._algorithm.start_camera(camera_num)
 
-            logging.info(f"picam2 number {camera_num} config: {still_config}")
+            # THIS CODE IS WHAT WORKED WITH OPENCV.  FOR TENSORFLOW, I'M LETTING THE DETECT CLASS
+            # HANDLE THE CAMERA. NEED TO THINK ABOUT HOW BEST TO ARCHITECT THIS.
+            # picam = Picamera2(camera_num)
 
-            picam.configure(still_config)
+            # if self._config["capture"]["flip"]:
+            #     transform = Transform(vflip=True, hflip=True)
+            # else:
+            #     transform = Transform()
+            # still_config = picam.create_still_configuration(
+            #     transform=transform,
+            #     buffer_count=4,
+            #     main={"format": "XBGR8888"},
+            #     lores={
+            #         "format": "XBGR8888",
+            #         "size": (
+            #             self._config["capture"]["lores"]["width"],
+            #             self._config["capture"]["lores"]["height"],
+            #         ),
+            #     },
+            #     display="lores",
+            # )
 
-            if enable_preview:
-                picam.start_preview(
-                    Preview.QTGL,
-                    x=self._config["preview"]["x"],
-                    y=self._config["preview"]["y"],
-                    width=self._config["preview"]["width"],
-                    height=self._config["preview"]["height"],
-                )
+            # logging.info(f"picam2 number {camera_num} config: {still_config}")
+
+            # picam.configure(still_config)
+
+            # if enable_preview:
+            #     picam.start_preview(
+            #         Preview.QTGL,
+            #         x=self._config["preview"]["x"],
+            #         y=self._config["preview"]["y"],
+            #         width=self._config["preview"]["width"],
+            #         height=self._config["preview"]["height"],
+            #     )
 
             camera_list.append(picam)
 
