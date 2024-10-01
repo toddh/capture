@@ -61,10 +61,10 @@ class TensorFlowDetect:
         global rectangles
 
         self._labels = self.read_label_file("coco_labels.txt")
-        self._model_file_path = "something.tflite"
+        self._model_file_path = "mobilenet_v2.tflite"
         self._normalSize = (640, 480)
         self._lowresSize = (320, 240)
-        self._model is what?
+        self._model = 'mobilenet_v2.tflite'
 
         rectangles = []
 
@@ -154,3 +154,5 @@ class TensorFlowDetect:
 
         return len(rectangles)
     
+    def get_object_detection_data(self, algorithm_data):
+        return f" data:{str(algorithm_data)}"

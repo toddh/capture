@@ -23,14 +23,15 @@ class ImageCaptureLoop:
     def __init__(self, config, pir_thread):
         self._config = config
 
-        self._camera_list = self.__set_up_cameras(
-            config["capture"]["cameras"], config["preview"]["enable"]
-        )
 
         # self._algorithm = HistogramDifference(config)
         # self._algorithm = AdaptiveThreshold(config)
         # self._algorithm = OpenCVObjectDetection(config)
         self._algorithm = TensorFlowDetect(config)
+
+        self._camera_list = self.__set_up_cameras(
+            config["capture"]["cameras"], config["preview"]["enable"]
+        )
 
         self._image_saver = ImageSaver()
         self._save_every_seconds = config["capture"]["save_anyways_hours"] * 3600
@@ -95,7 +96,7 @@ class ImageCaptureLoop:
                 datum = {}
                 datum["camera_name"] = 0
                 datum["num_detections"] = num_detections
-                algorithm_data[str(i)] = datum
+                algorithm_data[str(0)] = datum
                 if num_detections > 0:
                     any_motion_detected = True
                 # FORMER OPENCV CODE:
@@ -125,15 +126,14 @@ class ImageCaptureLoop:
                     )
                 ):
                     # SAVE THE IMAGE
-                     self._image_saver.save_array(
-                        self._camera_list[0].capture_array("lores"),
-                        self._camera_list[0].capture_array("main"),
-                        capture_time,
-                        any_motion_detected,
-                        pir,
-                        0,
-                        self._algorithm.get_object_detection_data(algorithm_data),
-                     )
+                    self._image_saver.save_array(
+                    self._camera_list[0].capture_array("lores"),
+                    self._camera_list[0].capture_array("main"),
+                    capture_time,
+                    any_motion_detected,
+                    pir,
+                    0,
+                    self._algorithm.get_object_detection_data(algorithm_data))
 
                     # FORMER OPENCV_CODE
                     # for i in range(len(capture_arrays)):
