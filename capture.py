@@ -6,8 +6,6 @@ import sys
 
 import tomllib
 from picamera2 import Picamera2
-
-import keyboard_input
 import stats_file
 import monitor_pir
 from image_capture_loop import ImageCaptureLoop
@@ -23,12 +21,6 @@ def command_line_handler(signum, frame):
     if res == "y":
         logging.info("stopping")
         stop()
-
-def on_press(key_code):
-    try:
-        keyboard_input.record_key_pressed(key_code.char)
-    except AttributeError:
-        pass
 
 def load_config():
     try:
@@ -85,8 +77,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     config = load_config()
 
-    pir_thread = monitor_pir.MonitorPIR(config)
-    pir_thread.start()
+    if config['pir']['check_pir']:
+        pir_thread = monitor_pir.MonitorPIR(config)
+        pir_thread.start()
 
     image_capture_loop = ImageCaptureLoop(config, pir_thread)
 
@@ -94,14 +87,6 @@ if __name__ == "__main__":
     image_saver.set_config(config)
 
     stats_file.start_stats_thread(config)
-
-    # Image Processing Thread
-
-    # listener = keyboard.Listener(
-    #     on_press=on_press,
-    # )
-    # listener.start()lores
-
 
     signal.signal(signal.SIGINT, command_line_handler)
     image_capture_loop.start()

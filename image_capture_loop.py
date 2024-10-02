@@ -63,7 +63,10 @@ class ImageCaptureLoop:
 
         while True:
             try:
-                pir = self._pir_thread.pir_detected()
+                if self._config['pir']['check_pir']:
+                    pir = self._pir_thread.pir_detected()
+                else:
+                    pir = False
 
                 # GET THE IMAGE
                 # TensorFlow uses capture_buffer.  OpenCV uses capture_array.
@@ -92,7 +95,7 @@ class ImageCaptureLoop:
                 any_motion_detected = False
 
                 # RUN INFERENCE AND PERFORM OBJECT DETECTION
-                num_detections = self._algorithm.InferenceTensorFlow(grey)
+                num_detections = self._algorithm.InferenceTensorFlow(grey, algorithm_data)
                 datum = {}
                 datum["camera_name"] = 0
                 datum["num_detections"] = num_detections

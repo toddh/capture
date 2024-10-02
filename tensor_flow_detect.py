@@ -1,3 +1,6 @@
+import logging
+
+
 import numpy as np
 import cv2
 import tflite_runtime.interpreter as tflite
@@ -14,6 +17,9 @@ def draw_rectangles(request):
     # to us as a regular numpy array, just as if we had obtained it via capture_array. Once we
     # leave the with block, the memory is unmapped and everything is cleaned up.
 
+
+    # FIXME: The rectangles are drawn on the "main" Mapped Array.
+
     for rect in rectangles:
         with MappedArray(request, "main") as m:
             for rect in rectangles:
@@ -26,7 +32,6 @@ def draw_rectangles(request):
                     font = cv2.FONT_HERSHEY_SIMPLEX
                     cv2.putText(m.array, text, (int(rect[0] * 2) + 10, int(rect[1] * 2) + 10),
                                     font, 1, (255, 255, 255), 2, cv2.LINE_AA)
-
 
 
 # Using the TensorFlow Lite example from Picamera2 as an example.
@@ -44,10 +49,6 @@ def draw_rectangles(request):
 # $ pip3 install pillow
 # $ pip3 install numpy
 
-
-
-
-
 class TensorFlowDetect:
     """
     TODO: Refactor as much as possible to AbstractObjectDetector
@@ -62,8 +63,8 @@ class TensorFlowDetect:
 
         self._labels = self.read_label_file("coco_labels.txt")
         self._model_file_path = "mobilenet_v2.tflite"
-        self._normalSize = (640, 480)
-        self._lowresSize = (320, 240)
+        self._normalSize = (config['tflite']['main']['width'], config['tflite']['main']['height'])
+        self._lowresSize = (config['tflite']['lores']['width'], config['tflite']['lores']['height'])
         self._model = 'mobilenet_v2.tflite'
 
         rectangles = []
@@ -81,12 +82,15 @@ class TensorFlowDetect:
     def start_camera(self, camera_num):
         picam2 = Picamera2(camera_num)
         picam2.start_preview(Preview.QTGL)
-        config = picam2.create_preview_configuration(main={"size": self._normalSize},
-                                                    lores={"size": self._lowresSize, "format": "YUV420"})
+        config = picam2.create_preview_configuration(main={"size": self._normalSize},  
+                                                    lores={"size": self._lowresSize, "format": "YUV420"},
+                                                    display='lores')
+
         picam2.configure(config)
 
         self._stride = picam2.stream_configuration("lores")["stride"]
-        picam2.post_callback = draw_rectangles
+        # TODO: Think about adding the following line in. It can be used to draw_rectangles in the preview.
+        # picam2.post_callback = draw_rectangles
 
         picam2.start()
 
@@ -94,18 +98,22 @@ class TensorFlowDetect:
     
     def get_image(self, picam2):
         buffer = picam2.capture_buffer("lores")
-        # TODO: Figure out what's going on here
         grey = buffer[:self._stride * self._lowresSize[1]].reshape((self._lowresSize[1], self._stride))
 
         return grey
 
-    def InferenceTensorFlow(self, image):
+    def InferenceTensorFlow(self, image, algorithm_data):
         global rectangles
+
+        logger = logging.getLogger()
+
+        algorithm_data["name"] = "tflite"
+        algorithm_data["tflite"] = {}
 
         interpreter = tflite.Interpreter(model_path=self._model_file_path, num_threads=4)
         interpreter.allocate_tensors()
 
-        # TODO: Refactor this out to a separate metho
+        # TODO: Refactor this out to a separate method
         input_details = interpreter.get_input_details()
         output_details = interpreter.get_output_details()
         height = input_details[0]['shape'][1]
@@ -148,11 +156,24 @@ class TensorFlowDetect:
                 if self._labels:
                     # print(self._labels[classId], 'score = ', score)
                     rectangles[-1].append(self._labels[classId])
+                    algorithm_data['tflite'][self._labels[classId]] = score
                 else:
                     # print('score = ', score)
-                    pass
+                    algorithm_data['tflite'][classId] = score
+
+        logger.debug(f"Detected {str(algorithm_data)}")
 
         return len(rectangles)
     
     def get_object_detection_data(self, algorithm_data):
         return f" data:{str(algorithm_data)}"
+
+    def print_algorithm_data(self, algorithm_data, motion_detected):
+        logger = logging.getLogger()
+        try:
+            logger.debug(
+                f"motion:{'TRUE' if motion_detected else '    '}"
+                f" data:{str(algorithm_data):<40}",
+            )
+        except KeyError:
+            logger.error("trouble printing tflite algorithm data")

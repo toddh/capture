@@ -2,17 +2,24 @@
 output_dir = '/home/admin/usbshare1/images/'
 # output_dir = '/home/admin/images/'
 save_anyways_hours = 1
-print_data = false
+print_data = true
 save_images = true
-algorithm = "opencv"
+algorithm = "tflite"
 interval = 0.5
 flip = true
 cameras = [1]   # List of cameras to pull data from and process
-lores.width = 640
+lores.width = 640  # TODO: Remove this. Use the algorithm specific values
 lores.height = 480
-process_stream = "lores"
+process_stream = "lores"  # TODO: Remove this. Use the algorithm specific values
 debug = false
 save_intermediate_images = false
+
+[tflite]
+stream_to_process = "lores"
+lores.width = 320
+lores.height = 240
+main.width = 4608
+main.height = 2592
 
 [preview]
 enable = false
@@ -40,6 +47,6 @@ preview = false
 interval = 600
 
 [pir]
-check_pir = true
+check_pir = false
 line = 4
 dwell = 0.2
