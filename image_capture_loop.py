@@ -27,7 +27,11 @@ class ImageCaptureLoop:
         # self._algorithm = HistogramDifference(config)
         # self._algorithm = AdaptiveThreshold(config)
         # self._algorithm = OpenCVObjectDetection(config)
-        self._algorithm = TensorFlowDetect(config)
+        self._algorithm = TensorFlowDetect(config['tflite']['lores_width'], 
+                                           config['tflite']['lores_height'], 
+                                           config['tflite']['main_width'], 
+                                           config['tflite']['main_height'], 
+                                           config['preview']['enable'])
 
         self._camera_list = self.__set_up_cameras(
             config["capture"]["cameras"], config["preview"]["enable"]
@@ -75,7 +79,7 @@ class ImageCaptureLoop:
                 # "capture_array() returns a numpy array representing the image"
                 # Both of these have a plural version.
 
-                grey = self._algorithm.get_image(self._camera_list[0])  # TODO: Either allow more than one in the code, or remove it as a config option
+                grey = self._algorithm.get_image_from_camera(self._camera_list[0])  # TODO: Either allow more than one in the code, or remove it as a config option
                 
                 # FORMER OPENCV CODE:
                 # capture_arrays = []
@@ -95,12 +99,12 @@ class ImageCaptureLoop:
                 any_motion_detected = False
 
                 # RUN INFERENCE AND PERFORM OBJECT DETECTION
-                num_detections = self._algorithm.InferenceTensorFlow(grey, algorithm_data)
+                rectangles = self._algorithm.detect_objects(grey, algorithm_data)
                 datum = {}
                 datum["camera_name"] = 0
-                datum["num_detections"] = num_detections
+                datum["rectangles"] = str(rectangles)
                 algorithm_data[str(0)] = datum
-                if num_detections > 0:
+                if len(rectangles) > 0:
                     any_motion_detected = True
                 # FORMER OPENCV CODE:
                 # for i in range(len(capture_arrays)):

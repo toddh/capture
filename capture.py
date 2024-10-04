@@ -69,7 +69,8 @@ def load_config():
 def stop():
     # stop_event.set()  # Signal the thread to stop
     # thread.join()
-    pir_thread.stop()
+    if config['pir']['check_pir']:
+        pir_thread.stop()
     sys.exit(1)
 
 
