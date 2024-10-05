@@ -1,5 +1,5 @@
 import logging
-import sys
+import pprint
 
 import cv2
 import numpy as np
@@ -10,14 +10,13 @@ rectangles = []
 preview_width = 640
 preview_height = 480
 
-def draw_rectangles(request):
+def draw_rectangles_preview(request):
     # NOTE: THIS IS NOT PART OF OUR CLASS!
     #
     # The MappedArray needs to be given a request and the name of the stream for which we
     # want access to its image buffer. It then maps that memory into user space and presents it
     # to us as a regular numpy array, just as if we had obtained it via capture_array. Once we
     # leave the with block, the memory is unmapped and everything is cleaned up.
-
 
     for rect in rectangles:
         with MappedArray(request, "main") as m:
@@ -70,7 +69,7 @@ class TensorFlowDetect:
         abstract_model (_type_): _description_
     """
 
-    def __init__(self, lores_width, lores_height, main_width, main_height, preview):
+    def __init__(self, lores_width, lores_height, main_width, main_height, preview, threshold=0.4):
         global rectangles
         global preview_width
         global preview_height
@@ -83,6 +82,7 @@ class TensorFlowDetect:
         self._lores_width = lores_width
         self._lores_height = lores_height
         self._preview = preview
+        self._threshold = threshold
 
         self._model = "mobilenet_v2.tflite"
 
@@ -90,6 +90,9 @@ class TensorFlowDetect:
         preview_width = main_width
         preview_height = main_height
 
+    def name(self):
+        return "tflite-mobilenetv2"
+    
     def _read_label_file(self, file_path):
         with open(file_path, "r") as f:
             lines = f.readlines()
@@ -98,6 +101,9 @@ class TensorFlowDetect:
             pair = line.strip().split(maxsplit=1)
             ret[int(pair[0])] = pair[1].strip()
         return ret
+    
+    def class_name(self, class_id):
+        return self._labels[class_id]
 
     def start_camera(self, camera_num):
         """
@@ -126,7 +132,7 @@ class TensorFlowDetect:
 
         # TODO: Think about adding the following line in. It can be used to draw_rectangles in the preview.
         if self._preview:
-            picam2.post_callback = draw_rectangles
+            picam2.post_callback = draw_rectangles_preview
 
         picam2.start()
 
@@ -174,17 +180,18 @@ class TensorFlowDetect:
         grey = cv2.cvtColor(
             img, cv2.COLOR_BGR2GRAY
         )
-        grey = cv2.resize(grey, (self._lores_width, self._lores_height))
+        grey = cv2.resize(grey, (self._lores_width, self._lores_height)) # FIXME: Maybe this shoud just be the size we want to send into the model.
 
-        main = cv2.cvtColor(
-            img, cv2.COLOR_BGR2RGB
-        )
-        main = cv2.resize(img, (self._main_width, self._main_height))
+        # main = cv2.cvtColor(
+        #     img, cv2.COLOR_BGR2RGB
+        # )
+        # main = cv2.resize(img, (self._main_width, self._main_height))
 
         # input_data = np.clip(input_data, 0, 255)
         # input_data = input_data.astype(self.__model.data_type())
         # input_data = np.expand_dims(input_data, axis=0)
-        return grey, main
+
+        return grey, img
 
     def detect_objects(self, image, algorithm_data):
         global rectangles
@@ -194,6 +201,8 @@ class TensorFlowDetect:
         algorithm_data["name"] = "tflite"
         algorithm_data["tflite"] = {}
 
+        logger.debug("detect_objects-")
+        logger.debug(f"image shape prior to modifying: {image.shape}")
         interpreter = tflite.Interpreter(model_path=self._model_file_path, num_threads=4)
         interpreter.allocate_tensors()
 
@@ -211,10 +220,14 @@ class TensorFlowDetect:
         initial_h, initial_w, channels = rgb.shape
 
         picture = cv2.resize(rgb, (width, height))
+        # I think that at this point, picture needs to be
+        logger.debug("picture shape: " + str(picture.shape))
 
         input_data = np.expand_dims(picture, axis=0)
         if floating_model:
             input_data = (np.float32(input_data) - 127.5) / 127.5
+
+        logger.debug("input_data shape: " + str(input_data.shape))
 
         interpreter.set_tensor(input_details[0]["index"], input_data)
 
@@ -225,30 +238,40 @@ class TensorFlowDetect:
         detected_scores = interpreter.get_tensor(output_details[2]["index"])
         num_boxes = interpreter.get_tensor(output_details[3]["index"])
 
+        logger.debug(f"detected_boxes shape: {detected_boxes.shape}")
+        logger.debug(f"detected_classes shape: {detected_classes.shape} {pprint.pformat(detected_classes)}")
+        logger.debug(f"detected_scores shape: {detected_scores.shape} {pprint.pformat(detected_scores)}")
+
         rectangles = []
+        scores = []
+        classes = []
+
         for i in range(int(num_boxes)):
             top, left, bottom, right = detected_boxes[0][i]
             classId = int(detected_classes[0][i])
             score = detected_scores[0][i]
-            if score > 0.2:
+            if score > self._threshold:
                 xmin = left
                 ymin = bottom
                 xmax = right
                 ymax = top
                 box = [xmin, ymin, xmax, ymax]
+                logger.debug(f"appending box: {box}")
                 rectangles.append(box)
+                scores.append(detected_scores[0][i])
+                classes.append(detected_classes[0][i])
                 if self._labels:
                     # print(self._labels[classId], 'score = ', score)
                     rectangles[-1].append(self._labels[classId])
-                    algorithm_data["tflite"][self._labels[classId]] = score
+                    algorithm_data["tflite"][self._labels[classId]] = score  # FIXME: This only appends the last one, which is the lowest probability greater than the threshold
                 else:
                     # print('score = ', score)
                     algorithm_data["tflite"][classId] = score
 
-        logger.debug(f"Detected {str(algorithm_data)}")
+        # logger.debug(f"Detected {str(algorithm_data)}")
 
-        # TODO: ALSO RETURN CLASSES AND SCORES
-        return rectangles
+        # Seems like rectangles are bottom-left then top-right
+        return rectangles, scores, classes
 
     def get_object_detection_data(self, algorithm_data):
         return f" data:{str(algorithm_data)}"
