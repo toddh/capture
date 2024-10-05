@@ -9,10 +9,11 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            "module": "test_images",
+            "module": "capture",
             "args": [
                 "-p",
-                "-d",
+                "--no-flip",
+                "-r"
             ],
         }
     ]

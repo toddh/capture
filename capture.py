@@ -36,17 +36,17 @@ def load_config():
         prog="Capture", description="Detect motion and capture images."
     )
 
-    parser.add_argument("-p", "--preview", action="store_true")
+    parser.add_argument("-p", "--preview", action="store_true", help="Enable preview")
+    parser.add_argument("-r", "--rectangles", action="store_true", help="Draw rectangles on the image")
     parser.add_argument("-pp", "--opencv_preview", action="store_true")
     parser.add_argument('--flip', action=argparse.BooleanOptionalAction)
-    parser.add_argument("-d", "--debug", action="store_true")
+    parser.add_argument("-l", "--logging", type=str, help="Set logging level", default="ERROR")
 
     args = parser.parse_args()
 
     if args.preview:
         config["preview"]["enable"] = True
-    if args.opencv_preview:
-        config["opencv"]["preview"] = True
+
 
 
     if args.flip is None:
@@ -56,13 +56,15 @@ def load_config():
     else:
         config["capture"]["flip"] = False
 
-    if args.debug:
-        config["capture"]["debug"] = True
 
-    if config["capture"]["debug"]:
-        logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
-        logger.debug("Debugging enabled")
+    # Model specific overrides
+    if args.opencv_preview:
+        config["opencv"]["preview"] = True
+    if args.rectangles:
+        config["tflite"]["draw_rectangles"] = True
+
+    logger = logging.getLogger()
+    logger.setLevel(args.logging)
 
     return config
     

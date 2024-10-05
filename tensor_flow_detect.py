@@ -5,10 +5,11 @@ import cv2
 import numpy as np
 import tflite_runtime.interpreter as tflite
 from picamera2 import MappedArray, Picamera2, Preview
+from libcamera import Transform
 
 rectangles = []
-preview_width = 640
-preview_height = 480
+main_buffer_width = None
+main_buffer_height = None
 
 def draw_rectangles_preview(request):
     # NOTE: THIS IS NOT PART OF OUR CLASS!
@@ -21,24 +22,28 @@ def draw_rectangles_preview(request):
     for rect in rectangles:
         with MappedArray(request, "main") as m:
             for rect in rectangles:
-                xmin = rect[0] * preview_width
-                ymin = rect[1] * preview_height
-                xmax = rect[2] * preview_width
-                ymax = rect[3] * preview_height
-                print(rect)
-                rect_start = (int(xmin * 2) - 5, int(ymin * 2) - 5)
-                rect_end = (int(xmax * 2) + 5, int(ymax * 2) + 5)
-                cv2.rectangle(m.array, rect_start, rect_end, (0, 255, 0, 0))
+                xmin = rect[0] * main_buffer_width
+                ymin = rect[1] * main_buffer_height
+                xmax = rect[2] * main_buffer_width
+                ymax = rect[3] * main_buffer_height
+
+                rect_start = (int(xmin) - 1, int(ymin) - 1)
+                rect_end = (int(xmax) + 1, int(ymax) + 1)
+                # rect_start = (int(xmin * 2) - 5, int(ymin * 2) - 5)
+                # rect_end = (int(xmax * 2) + 5, int(ymax * 2) + 5)
+
+
+                cv2.rectangle(m.array, rect_start, rect_end, (0, 0, 255), 8)
                 if len(rect) == 5:
                     text = rect[4]
                     font = cv2.FONT_HERSHEY_SIMPLEX
                     cv2.putText(
                         m.array,
                         text,
-                        (int(rect[0] * 2) + 10, int(rect[1] * 2) + 10),
+                        (int(rect_start[0]), int(rect_start[1]) - 10),
                         font,
                         1,
-                        (255, 255, 255),
+                        (0, 0, 255),
                         2,
                         cv2.LINE_AA,
                     )
@@ -51,7 +56,7 @@ def draw_rectangles_preview(request):
 # Install necessary dependences before starting,
 #
 # $ sudo apt update
-# $ sudo apt install build-essential
+# $ sudo apt install build-essential255
 # $ sudo apt install libatlas-base-dev
 # $ sudo apt install python3-pip
 # $ pip3 install tflite-runtime
@@ -69,29 +74,30 @@ class TensorFlowDetect:
         abstract_model (_type_): _description_
     """
 
-    def __init__(self, lores_width, lores_height, main_width, main_height, preview, threshold=0.4):
+    def __init__(self, config, flip, preview):
         global rectangles
-        global preview_width
-        global preview_height
+        global main_buffer_width
+        global main_buffer_height
 
         self._labels = self._read_label_file("coco_labels.txt")
         self._model_file_path = "mobilenet_v2.tflite"
 
-        self._main_width = main_width
-        self._main_height = main_height
-        self._lores_width = lores_width
-        self._lores_height = lores_height
+        self._main_width = config['main_width']
+        self._main_height = config['main_height']
+        self._lores_width = config['lores_width']
+        self._lores_height = config['lores_height']
+        self._threshold = config['threshold']
+        self._draw_rectangles = config['draw_rectangles']
+
+        self._flip = flip
         self._preview = preview
-        self._threshold = threshold
-
-        self._model = "mobilenet_v2.tflite"
-
+        
         rectangles = []
-        preview_width = main_width
-        preview_height = main_height
+        main_buffer_width = config['main_width']
+        main_buffer_height = config['main_height']
 
     def name(self):
-        return "tflite-mobilenetv2"
+        return self._model_file_path
     
     def _read_label_file(self, file_path):
         with open(file_path, "r") as f:
@@ -119,7 +125,14 @@ class TensorFlowDetect:
         picam2 = Picamera2(camera_num)
         if self._preview:
             picam2.start_preview(Preview.QTGL)
+
+        if self._flip:
+            transform = Transform(vflip=True, hflip=True)
+        else:
+            transform = Transform()
+
         config = picam2.create_preview_configuration(
+            transform=transform,
             main={"size": (self._main_width, self._main_height)},
             lores={"size": (self._lores_width, self._lores_height), "format": "YUV420"},
             display="main",
@@ -130,8 +143,7 @@ class TensorFlowDetect:
         self._stride = picam2.stream_configuration("lores")["stride"]
         # Stride = The length of each row of the image in bytes
 
-        # TODO: Think about adding the following line in. It can be used to draw_rectangles in the preview.
-        if self._preview:
+        if self._draw_rectangles:
             picam2.post_callback = draw_rectangles_preview
 
         picam2.start()
@@ -149,13 +161,6 @@ class TensorFlowDetect:
         Returns:
             _type_: _description_
         """
-
-        # So this is the original code to get the Y value. But it ended up getting too much.
-        # So I went with the stuff down below.
-        #
-        # buffer = picam2.capture_buffer("lores")
-        # grey = buffer[:self._stride * self._lowresHeight].reshape(self._lowresHeight, self._stride)
-        # Height, width
 
         buffer = picam2.capture_buffer("lores")
         grey = buffer[: self._stride * self._lores_height].reshape(self._lores_height, self._stride)
@@ -180,16 +185,7 @@ class TensorFlowDetect:
         grey = cv2.cvtColor(
             img, cv2.COLOR_BGR2GRAY
         )
-        grey = cv2.resize(grey, (self._lores_width, self._lores_height)) # FIXME: Maybe this shoud just be the size we want to send into the model.
-
-        # main = cv2.cvtColor(
-        #     img, cv2.COLOR_BGR2RGB
-        # )
-        # main = cv2.resize(img, (self._main_width, self._main_height))
-
-        # input_data = np.clip(input_data, 0, 255)
-        # input_data = input_data.astype(self.__model.data_type())
-        # input_data = np.expand_dims(input_data, axis=0)
+        grey = cv2.resize(grey, (self._lores_width, self._lores_height)) # FIXME: Maybe this should just be the size we want to send into the model.
 
         return grey, img
 
@@ -275,14 +271,3 @@ class TensorFlowDetect:
 
     def get_object_detection_data(self, algorithm_data):
         return f" data:{str(algorithm_data)}"
-
-    # TODO: REMOVE THIS IF ALL I'M DOING IS DOING str(algorithm_data)
-    def print_algorithm_data(self, algorithm_data, motion_detected):
-        logger = logging.getLogger()
-        try:
-            logger.debug(
-                f"motion:{'TRUE' if motion_detected else '    '}"
-                f" data:{str(algorithm_data):<40}",
-            )
-        except KeyError:
-            logger.error("trouble printing tflite algorithm data")

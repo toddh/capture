@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-Tests Models with images
+Tests Models with images.  Used to debug and test the other classes.
 
 """
 
@@ -23,10 +23,12 @@ IMG_DIR = "/home/admin/usbshare1/2_copy"
 IMG_PATH = "/home/admin/usbshare1/2_copy/bravo-2024-09-21 22.50.39.00747-c0-M-n-Main_.jpg"
 
 class RunModel:
-    def __init__(self, model, option_preview=False):
+    def __init__(self, model, option_preview=False, output_dir=None):
         self.__model = model
+        self.__output_dir = output_dir
+        self.__option_preview = option_preview
 
-    def _reside_with_aspect_ratio(self, image, width=None, height=None, inter=cv2.INTER_AREA):
+    def _resize_with_aspect_ratio(self, image, width=None, height=None, inter=cv2.INTER_AREA):
         dim = None
         (h, w) = image.shape[:2]
 
@@ -61,34 +63,40 @@ class RunModel:
             rectangle_with_scores = rectangles[i] + [scores[i]]
             found_objects.append(rectangle_with_scores)
 
-            if option_preview:
-                rect = rectangles[i]
-                # rect_start = (int(rect[0] * 2 *img_width) - 5, int(rect[1] * 2 * img_height) - 5)
-                # rect_end = (int(rect[2] * 2 * img_width) + 5, int(rect[3] * 2 * img_height) + 5)
+            # Potentially make drawing the rectangles on the image an option
 
-                rect_start = (int(rect[0] *img_width) - 1, int(rect[1] * img_height) - 1)
-                rect_end = (int(rect[2] * img_width) + 1, int(rect[3] * img_height) + 1)
+            rect = rectangles[i]
+            # rect_start = (int(rect[0] * 2 *img_width) - 5, int(rect[1] * 2 * img_height) - 5)
+            # rect_end = (int(rect[2] * 2 * img_width) + 5, int(rect[3] * 2 * img_height) + 5)
 
-                logger.debug(f"Rectangle start: {rect_start} end: {rect_end}") 
+            rect_start = (int(rect[0] *img_width) - 1, int(rect[1] * img_height) - 1)
+            rect_end = (int(rect[2] * img_width) + 1, int(rect[3] * img_height) + 1)
 
-                cv2.rectangle(main, rect_start, rect_end, (0, 0, 255), 8)
-                class_name = self.__model.class_name(int(classes[i]))
-                cv2.putText(
-                    main,
-                    f"{int(int(classes[i]))}: {class_name} ({scores[i]:.2f})",
-                    (int(rect_start[0]), int(rect_start[1]) - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.75,
-                    (0, 0, 255),
-                    2,
-                    cv2.LINE_AA,
-                )
+            logger.debug(f"Rectangle start: {rect_start} end: {rect_end}") 
 
-        if option_preview: # WAS and len(datum) > 0:
-            resize = self._reside_with_aspect_ratio(main, width=1280)
+            cv2.rectangle(main, rect_start, rect_end, (0, 0, 255), 8)
+            class_name = self.__model.class_name(int(classes[i]))
+            cv2.putText(
+                main,
+                f"{int(int(classes[i]))}: {class_name} ({scores[i]:.2f})",
+                (int(rect_start[0]), int(rect_start[1]) - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.75,
+                (0, 0, 255),
+                2,
+                cv2.LINE_AA,
+            )
+
+        if self.__option_preview: # potentially only display previews of windows with "hits"
+            resize = self._resize_with_aspect_ratio(main, width=1280)
             cv2.imshow("Image Preview", resize)
             cv2.waitKey(2000)
             cv2.destroyAllWindows()
+
+        if self.__output_dir:
+            output_path = os.path.join(self.__output_dir, os.path.basename(image_path))
+            cv2.imwrite(output_path, main)
+
 
         logger.info(f"Found objects: {found_objects}")
 
@@ -120,6 +128,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-p", "--preview", action="store_true")
     parser.add_argument("-d", "--debug", action="store_true")
+    parser.add_argument("-o", "--output", type=str, help="Directory to save output images")
 
     args = parser.parse_args()
     if args.preview:
@@ -132,8 +141,13 @@ if __name__ == "__main__":
         logger.setLevel(logging.DEBUG)
         logger.debug("Debugging enabled")
 
+    if args.output:
+        output_dir = args.output
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
     # runner = RunModel(MobileObjectLocalizer()).process_directory()
-    runner = RunModel(TensorFlowDetect(320, 240, 1152, 648, option_preview, 0.2), option_preview).process_directory()
+    runner = RunModel(TensorFlowDetect(320, 240, 1152, 648, option_preview, 0.2), option_preview, output_dir).process_directory()
     # runner = RunModel(YOLOv5()).process_directory()
 
     print("Completed.")

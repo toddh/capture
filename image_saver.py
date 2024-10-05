@@ -76,10 +76,10 @@ class ImageSaver:
     ):
         file_name = (
             f"{self._config['capture']['output_dir']}{node}-"
-            f"{capture_time:%Y-%m-%d %H.%M.%S}.{capture_time.microsecond // 1000:05d}-"
+            f"{capture_time:%Y-%m-%d_%H.%M.%S}.{capture_time.microsecond // 1000:05d}-"
             f"c{camera_num}-"
-            f"{'M' if motion_detected else 'n'}-"
-            f"{'P' if pir else 'n'}-"
+            f"{'M' if motion_detected else 'm'}"
+            f"{'P' if pir else 'p'}-"
             f"{stream_name:_<5s}.jpg"
         )
 
