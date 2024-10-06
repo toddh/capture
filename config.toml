@@ -1,18 +1,18 @@
 [capture]
-# output_dir = '/home/admin/usbshare1/images/'
-output_dir = '/home/admin/images/'                  # Output directory for
-save_anyways_hours = 1                              # Save an image every n hours regardless
+output_dir = '/home/admin/usbshare1/images/'
+# output_dir = '/home/admin/images/'                  # Output directory for
+save_anyways_hours = 4                              # Save an image every n hours regardless
 save_images = true                                  # Save images or dry-run
 algorithm = "tflite"                                # Algorithm to use
 delay = 0.5                                         # Time to sleep between iterations of the loop
 flip = true                                         # Turn the camera upside down
-cameras = [0]                                       # List of cameras to "watch"
+cameras = [1]                                       # List of cameras to "watch"
 
 [tflite]
 lores_width = 320
 lores_height = 240
-main_width = 1152
-main_height = 648
+main_width = 4608
+main_height = 2592
 threshold = 0.5
 draw_rectangles = false                             # Draw rectangles in the buffer
 
@@ -28,7 +28,7 @@ zoom = 1.0
 interval = 600
 
 [pir]
-check_pir = false
+check_pir = true
 line = 4
 dwell = 0.2
 
