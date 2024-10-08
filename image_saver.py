@@ -7,6 +7,8 @@ import piexif.helper
 from PIL import Image
 from PIL.ExifTags import TAGS
 
+from capture_data import CaptureData
+
 
 def get_exif_tag_id(tag_name):
     for tag_id, name in TAGS.items():
@@ -35,20 +37,17 @@ class ImageSaver:
     def set_config(self, config):
         self._config = config
 
-    def format_exif(
-        self, image_time, camera_num, motion_detected, pir, algorithm_data
-    ):
-        user_comment = {}
-        user_comment["camera_num"] = camera_num
-        user_comment["motion_detected"] = motion_detected
-        user_comment["pir"] = pir
-        user_comment["algorithm_data"] = algorithm_data
+    def format_exif(self, capture_data):
+        logger = logging.getLogger()
+
+        user_comment = capture_data.to_json()
+        logger.debug(f"User Comment: {user_comment}")
 
         formatted_comment = piexif.helper.UserComment.dump(str(user_comment))
 
-        formatted_model = f"{'PIR' if pir else 'NoPIR'} - {'MOTION' if motion_detected else 'NoMotion'}".encode()
+        formatted_model = capture_data.to_short_string().encode()
 
-        time_str = image_time.strftime("%Y:%m:%d %H:%M:%S")
+        time_str = capture_data.capture_time_str()
 
         zeroth_ifd = {
             piexif.ImageIFD.Make: "Camera Module 3",
@@ -71,12 +70,10 @@ class ImageSaver:
 
         return exif_bytes
 
-    def format_file_name(
-        self, node, capture_time, camera_num, motion_detected, pir, stream_name
-    ):
+    def format_file_name(self, node, capture_time_str, camera_num, motion_detected, pir, stream_name):
         file_name = (
             f"{self._config['capture']['output_dir']}{node}-"
-            f"{capture_time:%Y-%m-%d_%H.%M.%S}.{capture_time.microsecond // 1000:05d}-"
+            f"{capture_time_str}-"
             f"c{camera_num}-"
             f"{'M' if motion_detected else 'm'}"
             f"{'P' if pir else 'p'}-"
@@ -89,11 +86,7 @@ class ImageSaver:
         self,
         lores_array,
         main_array,
-        capture_time,
-        motion_detected,
-        pir,
-        camera_num,
-        algorithm_data,
+        capture_data,
     ):
         """Save an array. Either intermediate or final.
 
@@ -109,13 +102,7 @@ class ImageSaver:
         """
         try:
             if self._config["capture"]["save_images"]:
-                exif_bytes = self.format_exif(
-                    capture_time,
-                    camera_num,
-                    motion_detected,
-                    pir,
-                    algorithm_data,
-                )
+                exif_bytes = self.format_exif(capture_data)
 
                 # image = Image.fromarray(lores_array).convert("RGB")
                 # file_name = self.format_file_name(
@@ -125,7 +112,12 @@ class ImageSaver:
 
                 image = Image.fromarray(main_array).convert("RGB")
                 file_name = self.format_file_name(
-                    platform.node(), capture_time, str(camera_num), motion_detected, pir, "Main"        # Make it a capital M so it sorts before the lores stream
+                    platform.node(),
+                    capture_data.capture_time_str(),
+                    str(capture_data.camera_num),
+                    capture_data.object_detected,
+                    capture_data.pir_fired,
+                    "Main",  # Make it a capital M so it sorts before the lores stream
                 )
                 image.save(file_name, exif=exif_bytes)
 

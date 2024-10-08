@@ -2,10 +2,13 @@ import datetime
 import logging
 import traceback
 from time import sleep
+import platform
 
 from libcamera import Transform
 from picamera2 import Picamera2
 from picamera2 import Preview
+
+import numpy as np
 
 # from adaptive_threshold import AdaptiveThreshold
 # from histogram_difference import HistogramDifference
@@ -13,6 +16,7 @@ from image_saver import ImageSaver
 # from opencv_object_detection import OpenCVObjectDetection
 from tensor_flow_detect import TensorFlowDetect
 
+from capture_data import CaptureData
 
 class ImageCaptureLoop:
     """This class is the overall motion detector loop.
@@ -83,31 +87,33 @@ class ImageCaptureLoop:
                 #     )  # capture_arrays is an array where each element is also an array. The first item in the element is the lores array. The second is the main.
 
 
-                capture_time = datetime.datetime.now()
-
-                algorithm_data = {}
-                algorithm_data["pir"] = "True" if pir else "False"
-
-                any_motion_detected = False
+                capture_data = CaptureData()
+                capture_data.capture_time = datetime.datetime.now()
+                capture_data.pir_fired = pir
+                capture_data.node_name = platform.node()
+                capture_data.camera_num = 0  # TODO: Fix this
+                capture_data.object_detected = False
 
                 # RUN INFERENCE AND PERFORM OBJECT DETECTION
-                rectangles, scores, classes = self._algorithm.detect_objects(grey, algorithm_data)
-                datum = {}
-                datum["camera_name"] = 0
-                datum["rectangles"] = str(rectangles)
-                algorithm_data[str(0)] = datum
+                rectangles, scores, classes = self._algorithm.detect_objects(grey)
+
+                capture_data.rectangles = rectangles
+                capture_data.classes = classes
+                capture_data.scores = scores   
+
+
                 if len(rectangles) > 0:
-                    any_motion_detected = True
+                    capture_data.object_detected = True
 
                 logger.debug(
-                    f"Checked images at: {capture_time:%H:%M:%S} Motion detected: {any_motion_detected}"
+                    f"Checked images at: {capture_data.capture_time_str()} Object detected: {capture_data.object_detected}"
                 )
 
                 if (
-                    any_motion_detected
+                    capture_data.object_detected
                     or pir
                     or (
-                        (capture_time - time_of_last_save).total_seconds()
+                        (capture_data.capture_time - time_of_last_save).total_seconds()
                         > self._save_every_seconds
                     )
                 ):
@@ -115,11 +121,7 @@ class ImageCaptureLoop:
                     self._image_saver.save_array(
                     self._camera_list[0].capture_array("lores"),
                     self._camera_list[0].capture_array("main"),
-                    capture_time,
-                    any_motion_detected,
-                    pir,
-                    0,
-                    self._algorithm.get_object_detection_data(algorithm_data))
+                    capture_data)
 
                     # FORMER OPENCV_CODE
                     # for i in range(len(capture_arrays)):
@@ -133,7 +135,7 @@ class ImageCaptureLoop:
                     #         self._algorithm.get_object_detection_data(algorithm_data),
                     #     )
 
-                    time_of_last_save = capture_time
+                    time_of_last_save = capture_data.capture_time
 
             except Exception as e:
                     logging.error(f"An error occurred in the image capture loop: {e}")

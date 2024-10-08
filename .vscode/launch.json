@@ -11,9 +11,10 @@
             "request": "launch",
             "module": "capture",
             "args": [
-                "-p",
                 "--no-flip",
-                "-r"
+                "--pir",
+                "--logging",
+                "INFO"
             ],
         }
     ]

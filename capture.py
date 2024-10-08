@@ -41,13 +41,22 @@ def load_config():
     parser.add_argument("-pp", "--opencv_preview", action="store_true")
     parser.add_argument('--flip', action=argparse.BooleanOptionalAction)
     parser.add_argument("-l", "--logging", type=str, help="Set logging level", default="ERROR")
+    parser.add_argument("--pir", action=argparse.BooleanOptionalAction, help="Check the PIR sensor")
 
     args = parser.parse_args()
+
+    logger = logging.getLogger()
+    logger.setLevel(args.logging)    
 
     if args.preview:
         config["preview"]["enable"] = True
 
-
+    if args.pir is None:
+        pass
+    elif args.pir:
+        config["pir"]["check_pir"] = True
+    else:
+        config["pir"]["check_pir"] = False
 
     if args.flip is None:
         pass
@@ -56,15 +65,13 @@ def load_config():
     else:
         config["capture"]["flip"] = False
 
-
     # Model specific overrides
     if args.opencv_preview:
         config["opencv"]["preview"] = True
     if args.rectangles:
         config["tflite"]["draw_rectangles"] = True
 
-    logger = logging.getLogger()
-    logger.setLevel(args.logging)
+
 
     return config
     

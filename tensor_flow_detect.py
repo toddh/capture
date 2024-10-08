@@ -189,13 +189,10 @@ class TensorFlowDetect:
 
         return grey, img
 
-    def detect_objects(self, image, algorithm_data):
+    def detect_objects(self, image):
         global rectangles
 
         logger = logging.getLogger()
-
-        algorithm_data["name"] = "tflite"
-        algorithm_data["tflite"] = {}
 
         logger.debug("detect_objects-")
         logger.debug(f"image shape prior to modifying: {image.shape}")
@@ -257,12 +254,7 @@ class TensorFlowDetect:
                 scores.append(detected_scores[0][i])
                 classes.append(detected_classes[0][i])
                 if self._labels:
-                    # print(self._labels[classId], 'score = ', score)
                     rectangles[-1].append(self._labels[classId])
-                    algorithm_data["tflite"][self._labels[classId]] = score  # FIXME: This only appends the last one, which is the lowest probability greater than the threshold
-                else:
-                    # print('score = ', score)
-                    algorithm_data["tflite"][classId] = score
 
         # logger.debug(f"Detected {str(algorithm_data)}")
 
