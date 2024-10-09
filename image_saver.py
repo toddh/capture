@@ -41,7 +41,7 @@ class ImageSaver:
         logger = logging.getLogger()
 
         user_comment = capture_data.to_json()
-        logger.debug(f"User Comment: {user_comment}")
+        logger.info(f"User Comment: {user_comment}")
 
         formatted_comment = piexif.helper.UserComment.dump(str(user_comment))
 
@@ -54,7 +54,7 @@ class ImageSaver:
             piexif.ImageIFD.Model: formatted_model,
         }
         exif_ifd = {
-            piexif.ExifIFD.DateTimeOriginal: time_str,
+            piexif.ExifIFD.DateTimeOriginal: time_str,  # FIXME: Should this be a string?
             piexif.ExifIFD.UserComment: formatted_comment,
         }
         gps_ifd = {}

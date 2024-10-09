@@ -4,8 +4,6 @@ import numpy as np
 
 class CaptureData:
 
-
-
     def __init__(self) -> None:
         # These are public values. Set them as you go!
              
@@ -14,9 +12,9 @@ class CaptureData:
         self.node_name = None
         self.camera_num = None
         self.object_detected = None
-        self.rectangles = []
-        self.scores = []
-        self.classes = []
+        self.rectangles = []    # You need to append to these lists
+        self.scores = []        # You need to append to these lists
+        self.classes = []       # You need to append to these lists
 
     # TODO: Figure out how to get this to work. Need to read up on it.
     # 
@@ -35,14 +33,18 @@ class CaptureData:
                 retval = str(obj.tolist())
             if isinstance(obj, datetime.datetime):
                 retval = obj.strftime("%Y-%m-%d %H:%M:%S")
+            if isinstance(obj, np.float32):
+                retval = obj.item()
             return retval
 
-        return json.dumps(self.__dict__, default=convert)
+        str = json.dumps(self.__dict__, default=convert)
+
+        return str
 
     def to_short_string(self):
         pir_status = "PIR" if self.pir_fired else "No PIR"
         object_status = "Object" if self.object_detected else "No Object"
-        classes = ", ".join([obj[4] for obj in self.classes if len(obj) > 4])
+        classes = str(self.classes) # ", ".join(self.classes)
         return f"{pir_status} - {object_status} - Classes: {classes}"
     
     def to_coco(self):

@@ -12,7 +12,7 @@
             "module": "capture",
             "args": [
                 "--no-flip",
-                "--pir",
+                "--no-pir",
                 "--logging",
                 "INFO"
             ],

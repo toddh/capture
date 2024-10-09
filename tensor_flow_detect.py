@@ -252,9 +252,9 @@ class TensorFlowDetect:
                 logger.debug(f"appending box: {box}")
                 rectangles.append(box)
                 scores.append(detected_scores[0][i])
-                classes.append(detected_classes[0][i])
-                if self._labels:
-                    rectangles[-1].append(self._labels[classId])
+                classes.append(self._labels[detected_classes[0][i]])
+                # if self._labels:              # T
+                #     rectangles[-1].append(self._labels[classId])
 
         # logger.debug(f"Detected {str(algorithm_data)}")
 
