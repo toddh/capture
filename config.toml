@@ -6,14 +6,14 @@ save_images = true                                  # Save images or dry-run
 algorithm = "tflite"                                # Algorithm to use
 delay = 0.5                                         # Time to sleep between iterations of the loop
 flip = true                                         # Turn the camera upside down
-cameras = [1]                                       # List of cameras to "watch"
+cameras = [0]                                       # List of cameras to "watch"
 
 [tflite]
 lores_width = 320
 lores_height = 240
 main_width = 4608
 main_height = 2592
-threshold = 0.5
+threshold = 0.25
 draw_rectangles = false                             # Draw rectangles in the buffer
 
 [preview]
