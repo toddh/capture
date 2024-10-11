@@ -14,7 +14,7 @@
                 "--no-flip",
                 "--no-pir",
                 "--logging",
-                "INFO"
+                "DEBUG"
             ],
         }
     ]

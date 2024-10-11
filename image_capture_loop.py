@@ -61,6 +61,9 @@ class ImageCaptureLoop:
 
         logger = logging.getLogger()
 
+        burst = False
+        burst_cnt = 0
+
         while True:
             try:
                 if self._pir_thread is not None:
@@ -116,6 +119,7 @@ class ImageCaptureLoop:
                         (capture_data.capture_time - time_of_last_save).total_seconds()
                         > self._save_every_seconds
                     )
+                    or burst
                 ):
                     # SAVE THE IMAGE
                     self._image_saver.save_array(
@@ -137,12 +141,23 @@ class ImageCaptureLoop:
 
                     time_of_last_save = capture_data.capture_time
 
+                    if not burst:
+                        burst = True
+                        burst_cnt = 3
+                    else:
+                        burst_cnt -= 1
+                        if burst_cnt == 0:
+                            burst = False
+
+                logger.debug(f"Burst: {burst} Burst count: {burst_cnt}")
+
             except Exception as e:
                     logging.error(f"An error occurred in the image capture loop: {e}")
                     traceback.print_exc()
                     continue
 
-            sleep(self._delay)
+            if not burst:
+                sleep(self._delay)
 
     def __set_up_cameras(self, cameras, enable_preview):
         """

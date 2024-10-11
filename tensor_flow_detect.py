@@ -7,6 +7,8 @@ import tflite_runtime.interpreter as tflite
 from picamera2 import MappedArray, Picamera2, Preview
 from libcamera import Transform
 
+from stop_list import StopList
+
 rectangles = []
 main_buffer_width = None
 main_buffer_height = None
@@ -95,6 +97,9 @@ class TensorFlowDetect:
         rectangles = []
         main_buffer_width = config['main_width']
         main_buffer_height = config['main_height']
+
+        self._stop_list = StopList()
+        self._stop_list.set_stop_list(config['stop_list'])
 
     def name(self):
         return self._model_file_path
@@ -243,18 +248,21 @@ class TensorFlowDetect:
             top, left, bottom, right = detected_boxes[0][i]
             classId = int(detected_classes[0][i])
             score = detected_scores[0][i]
-            if score > self._threshold:
-                xmin = left
-                ymin = bottom
-                xmax = right
-                ymax = top
-                box = [xmin, ymin, xmax, ymax]
-                logger.debug(f"appending box: {box}")
-                rectangles.append(box)
-                scores.append(detected_scores[0][i])
-                classes.append(self._labels[detected_classes[0][i]])
-                # if self._labels:              # T
-                #     rectangles[-1].append(self._labels[classId])
+            if score > self._threshold:                
+                dont_do_it =  self._stop_list.is_in_stop_list(self._labels[classId])
+                logger.debug(f"label: {self._labels[classId]} dont_do_it: {dont_do_it}")
+                if not dont_do_it:
+                    xmin = left
+                    ymin = bottom
+                    xmax = right
+                    ymax = top
+                    box = [xmin, ymin, xmax, ymax]
+                    logger.debug(f"appending box: {box}")
+                    rectangles.append(box)
+                    scores.append(detected_scores[0][i])
+                    classes.append(self._labels[detected_classes[0][i]])
+                    # if self._labels:              # T
+                    #     rectangles[-1].append(self._labels[classId])
 
         # logger.debug(f"Detected {str(algorithm_data)}")
 

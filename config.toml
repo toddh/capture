@@ -1,6 +1,8 @@
+# https://toml.io/en/
+
 [capture]
 output_dir = '/home/admin/usbshare1/images/'
-# output_dir = '/home/admin/images/'                  # Output directory for
+# output_dir = '/home/admin/images/'                # Output directory for
 save_anyways_hours = 4                              # Save an image every n hours regardless
 save_images = true                                  # Save images or dry-run
 algorithm = "tflite"                                # Algorithm to use
@@ -15,6 +17,17 @@ main_width = 4608
 main_height = 2592
 threshold = 0.25
 draw_rectangles = false                             # Draw rectangles in the buffer
+stop_list = [
+    "umbrella",
+    "car",
+    "giraffe",
+    "bear",
+    "elephant",
+    "sheep",
+    "fire hydrant",
+    "bench",
+    "chair"
+    ]
 
 [preview]
 enable = false
